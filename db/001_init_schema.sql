@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(30) NULL,
   about_me TEXT NULL,
   city VARCHAR(100) NULL,
+  state VARCHAR(10) NULL,
   country CHAR(2) NULL,
   languages JSON NULL,
   gender ENUM('male', 'female', 'non_binary', 'other', 'prefer_not_to_say') NULL,
