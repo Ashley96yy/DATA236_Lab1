@@ -251,7 +251,7 @@ export default function ProfilePage() {
   return (
     <section className="page-card">
       <h1 className="auth-title">Profile</h1>
-      <p className="muted">Manage your user details for Week 1.</p>
+      <p className="muted">Manage your account details and profile information.</p>
       <div className="profile-avatar-section">
         <div className="profile-avatar-header">
           <h2>Your Profile Photo</h2>
@@ -299,7 +299,7 @@ export default function ProfilePage() {
           <input type="text" name="city" value={form.city} onChange={handleChange} />
         </label>
         <label>
-          State (abbreviation)
+          State
           <select
             name="state"
             value={form.state}
@@ -353,7 +353,7 @@ export default function ProfilePage() {
         </label>
         {error ? <p className="error-text full-row">{error}</p> : null}
         {success ? <p className="success-text full-row">{success}</p> : null}
-        <button type="submit" disabled={saving}>
+        <button type="submit" disabled={saving} className="full-row">
           {saving ? "Saving..." : "Save Profile"}
         </button>
       </form>
