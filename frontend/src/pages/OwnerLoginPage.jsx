@@ -87,6 +87,9 @@ export default function OwnerLoginPage() {
           <p className="auth-bottom-text">
             New owner? <Link to="/owner/signup">Create owner account</Link>
           </p>
+          <p className="auth-bottom-text">
+            Not an owner? <Link to="/login">User Login</Link>
+          </p>
         </section>
 
         <aside className="auth-hero">

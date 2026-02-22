@@ -92,6 +92,9 @@ export default function SignupPage() {
           <p className="auth-bottom-text">
             Already have an account? <Link to="/login">Sign in</Link>
           </p>
+          <p className="auth-bottom-text">
+            Want to register as owner? <Link to="/owner/signup">Owner Signup</Link>
+          </p>
         </section>
 
         <aside className="auth-hero">

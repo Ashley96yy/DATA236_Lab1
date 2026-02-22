@@ -104,6 +104,9 @@ export default function OwnerSignupPage() {
           <p className="auth-bottom-text">
             Already an owner? <Link to="/owner/login">Sign in</Link>
           </p>
+          <p className="auth-bottom-text">
+            Not an owner? <Link to="/signup">User Signup</Link>
+          </p>
         </section>
 
         <aside className="auth-hero">

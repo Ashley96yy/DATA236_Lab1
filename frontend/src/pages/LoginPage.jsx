@@ -83,6 +83,9 @@ export default function LoginPage() {
           <p className="auth-bottom-text">
             New to Dine Finder? <Link to="/signup">Sign up</Link>
           </p>
+          <p className="auth-bottom-text">
+            Are you a restaurant owner? <Link to="/owner/login">Owner Login</Link>
+          </p>
         </section>
 
         <aside className="auth-hero">
