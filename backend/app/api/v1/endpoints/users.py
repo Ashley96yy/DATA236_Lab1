@@ -22,7 +22,8 @@ router = APIRouter(prefix="/users", tags=["users"])
 settings = get_settings()
 avatars_dir = settings.uploads_dir / "avatars"
 avatars_dir.mkdir(parents=True, exist_ok=True)
-allowed_avatar_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+allowed_avatar_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+allowed_avatar_mime_types = {"image/jpeg", "image/png", "image/webp"}
 max_avatar_size_bytes = 5 * 1024 * 1024
 
 
@@ -134,6 +135,12 @@ def update_my_preferences(
 
 
 @router.post("/me/avatar", response_model=AvatarUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/me/profile-picture",
+    response_model=AvatarUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
 async def upload_my_avatar(
     request: Request,
     file: UploadFile = File(...),
@@ -147,8 +154,8 @@ async def upload_my_avatar(
     if extension not in allowed_avatar_extensions:
         raise HTTPException(status_code=400, detail="Unsupported image format.")
 
-    if not (file.content_type and file.content_type.startswith("image/")):
-        raise HTTPException(status_code=400, detail="File must be an image.")
+    if file.content_type not in allowed_avatar_mime_types:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, and WEBP images are supported.")
 
     file_bytes = await file.read()
     if len(file_bytes) > max_avatar_size_bytes:

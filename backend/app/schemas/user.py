@@ -1,10 +1,11 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 GenderType = Literal["male", "female", "non_binary", "other", "prefer_not_to_say"]
 PriceRangeType = Literal["$", "$$", "$$$", "$$$$"]
 SortPreferenceType = Literal["rating", "distance", "popularity", "price"]
+ALLOWED_COUNTRY_CODES = {"CA", "CN", "DE", "FR", "GB", "IN", "JP", "KR", "MX", "US"}
 
 
 class UserProfileResponse(BaseModel):
@@ -30,6 +31,26 @@ class UserProfileUpdateRequest(BaseModel):
     country: Optional[str] = Field(default=None, min_length=2, max_length=2)
     languages: Optional[str] = None
     gender: Optional[GenderType] = None
+
+    @field_validator("state")
+    @classmethod
+    def validate_state(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if len(normalized) != 2 or not normalized.isalpha():
+            raise ValueError("State must be a 2-letter uppercase abbreviation.")
+        return normalized
+
+    @field_validator("country")
+    @classmethod
+    def validate_country(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if normalized not in ALLOWED_COUNTRY_CODES:
+            raise ValueError("Country must be one of the supported country codes.")
+        return normalized
 
 
 class UserPreferencesResponse(BaseModel):
