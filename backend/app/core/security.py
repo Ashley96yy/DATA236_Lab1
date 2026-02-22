@@ -19,10 +19,11 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 
-def create_access_token(subject: str, expires_minutes: int) -> str:
+def create_access_token(subject: str, expires_minutes: int, token_type: str = "user") -> str:
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
         "sub": subject,
+        "token_type": token_type,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=expires_minutes)).timestamp()),
     }

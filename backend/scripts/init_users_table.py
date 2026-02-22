@@ -9,11 +9,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app.db.base import Base
 from app.db.session import engine
+from app.models.owner import Owner
 from app.models.user import User
 
 
 def main() -> None:
-    Base.metadata.create_all(bind=engine, tables=[User.__table__])
+    Base.metadata.create_all(bind=engine, tables=[User.__table__, Owner.__table__])
     with engine.begin() as connection:
         has_state_column = connection.execute(
             text(
@@ -29,7 +30,7 @@ def main() -> None:
         ).scalar_one_or_none()
         if has_state_column is None:
             connection.execute(text("ALTER TABLE users ADD COLUMN state VARCHAR(10) NULL AFTER city"))
-    print("users table is ready")
+    print("users and owners tables are ready")
 
 
 if __name__ == "__main__":

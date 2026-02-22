@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     cors_origins: str = "http://127.0.0.1:5173,http://localhost:5173"
     uploads_dir_name: str = "uploads"
+    startup_db_check_enabled: bool = True
+    startup_db_check_strict: bool = False
 
     tavily_api_key: str = ""
     llm_provider: str = "openai"

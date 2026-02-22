@@ -5,6 +5,8 @@ import PublicRoute from "./components/PublicRoute";
 import TopNav from "./components/TopNav";
 import { useAuth } from "./contexts/AuthContext";
 import LoginPage from "./pages/LoginPage";
+import OwnerLoginPage from "./pages/OwnerLoginPage";
+import OwnerSignupPage from "./pages/OwnerSignupPage";
 import PreferencesPage from "./pages/PreferencesPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
@@ -69,10 +71,7 @@ export default function App() {
             path="/owner/login"
             element={
               <PublicRoute>
-                <PlaceholderPage
-                  title="Owner Login"
-                  description="Phase 0 route placeholder for owner login."
-                />
+                <OwnerLoginPage />
               </PublicRoute>
             }
           />
@@ -80,10 +79,7 @@ export default function App() {
             path="/owner/signup"
             element={
               <PublicRoute>
-                <PlaceholderPage
-                  title="Owner Signup"
-                  description="Phase 0 route placeholder for owner signup."
-                />
+                <OwnerSignupPage />
               </PublicRoute>
             }
           />

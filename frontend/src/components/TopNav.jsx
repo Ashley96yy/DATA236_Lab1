@@ -20,6 +20,7 @@ export default function TopNav() {
           <Link to="/">Explore</Link>
           {!isAuthenticated ? <Link to="/login">Login</Link> : null}
           {!isAuthenticated ? <Link to="/signup">Signup</Link> : null}
+          {!isAuthenticated ? <Link to="/owner/login">Owner Login</Link> : null}
           {isAuthenticated ? <Link to="/profile">Profile</Link> : null}
           {isAuthenticated ? <Link to="/preferences">Preferences</Link> : null}
         </nav>
