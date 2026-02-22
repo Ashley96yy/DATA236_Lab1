@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 export default function TopNav() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -15,17 +15,22 @@ export default function TopNav() {
   return (
     <header className="top-nav">
       <div className="top-nav-inner">
-        <ProjectLogo to="/profile" compact />
+        <ProjectLogo to="/" compact />
         <nav className="top-links">
-          <Link to="/profile">Profile</Link>
-          <Link to="/preferences">Preferences</Link>
+          <Link to="/">Explore</Link>
+          {!isAuthenticated ? <Link to="/login">Login</Link> : null}
+          {!isAuthenticated ? <Link to="/signup">Signup</Link> : null}
+          {isAuthenticated ? <Link to="/profile">Profile</Link> : null}
+          {isAuthenticated ? <Link to="/preferences">Preferences</Link> : null}
         </nav>
-        <div className="nav-user">
-          <span>{user?.name || "User"}</span>
-          <button type="button" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
+        {isAuthenticated ? (
+          <div className="nav-user">
+            <span>{user?.name || "User"}</span>
+            <button type="button" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
+        ) : null}
       </div>
     </header>
   );

@@ -23,6 +23,11 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 register_exception_handlers(app)
 
 
+@app.get("/health")
+def health_root() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 @app.on_event("startup")
 def ping_database_on_startup() -> None:
     with engine.connect() as connection:
