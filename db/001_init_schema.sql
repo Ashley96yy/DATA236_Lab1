@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   city VARCHAR(100) NULL,
   state VARCHAR(10) NULL,
   country CHAR(2) NULL,
-  languages JSON NULL,
-  gender ENUM('male', 'female', 'non_binary', 'other', 'prefer_not_to_say') NULL,
+  languages JSON NULL, -- need revise: primary language
+  gender ENUM('Male', 'Female', 'Other') NULL,
   avatar_url VARCHAR(500) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

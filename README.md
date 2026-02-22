@@ -91,6 +91,14 @@ python scripts/db_smoke.py
 uvicorn app.main:app --reload
 ```
 
+### Optional: manage schema with Alembic migrations
+From `backend/`:
+```bash
+alembic revision --autogenerate -m "describe change"
+alembic upgrade head
+```
+Alembic uses the same DB settings from `backend/.env`.
+
 6. Verify health endpoint:
 ```bash
 curl http://127.0.0.1:8000/api/v1/health

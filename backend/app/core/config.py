@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     cors_origins: str = "http://127.0.0.1:5173,http://localhost:5173"
     uploads_dir_name: str = "uploads"
 
+    tavily_api_key: str = ""
+    llm_provider: str = "openai"
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

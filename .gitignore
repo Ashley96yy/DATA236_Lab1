@@ -6,3 +6,6 @@ venv/
 .env
 node_modules/
 dist/
+backend/uploads/
+frontend/dist/
+frontend/.vite/
