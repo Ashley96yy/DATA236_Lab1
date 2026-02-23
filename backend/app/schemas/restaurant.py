@@ -7,9 +7,11 @@ finalised after model/schema approval.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
+
+PricingTier = Literal["$", "$$", "$$$", "$$$$"]
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +50,7 @@ class RestaurantCreate(BaseModel):
 
     # Rich data
     hours_json: Optional[dict] = None         # e.g. {"Mon": "9am-10pm", ...}
-    pricing_tier: Optional[str] = Field(default=None, pattern=r"^\${1,4}$")
+    pricing_tier: Optional[PricingTier] = None
     amenities: Optional[list[str]] = None     # e.g. ["WiFi", "Parking"]
 
 
@@ -77,7 +79,7 @@ class RestaurantResponse(BaseModel):
     email: Optional[str] = None
 
     hours_json: Optional[dict] = None
-    pricing_tier: Optional[str] = None
+    pricing_tier: Optional[PricingTier] = None
     amenities: Optional[list[str]] = None
 
     created_by_user_id: Optional[int] = None
@@ -105,7 +107,7 @@ class RestaurantCard(BaseModel):
     name: str
     cuisine_type: Optional[str] = None
     city: str
-    pricing_tier: Optional[str] = None
+    pricing_tier: Optional[PricingTier] = None
     avg_rating: Optional[float] = None
     review_count: int = 0
     # First photo for card thumbnail (None if no photos)
