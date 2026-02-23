@@ -11,12 +11,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, DateTime, Enum, Float, ForeignKey, JSON, String, Text, text
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, JSON, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-pricing_tier_enum = Enum("$", "$$", "$$$", "$$$$", name="pricing_tier_enum")
 
 
 class Restaurant(Base):
@@ -46,7 +44,7 @@ class Restaurant(Base):
 
     # Rich data
     hours_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    pricing_tier: Mapped[Optional[str]] = mapped_column(pricing_tier_enum, nullable=True)
+    pricing_tier: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     amenities: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Ownership
