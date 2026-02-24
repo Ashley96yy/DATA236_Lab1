@@ -1,8 +1,5 @@
 """
 Pydantic schemas for Phase 3 restaurant endpoints.
-
-Stubs only — validation logic and optional/required rules will be
-finalised after model/schema approval.
 """
 from __future__ import annotations
 
@@ -44,6 +41,10 @@ class RestaurantCreate(BaseModel):
     zip_code: Optional[str] = Field(default=None, max_length=20)
     country: Optional[str] = Field(default=None, max_length=100)
 
+    # Geo
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
     # Contact
     phone: Optional[str] = Field(default=None, max_length=30)
     email: Optional[str] = Field(default=None, max_length=255)
@@ -79,14 +80,14 @@ class RestaurantResponse(BaseModel):
     email: Optional[str] = None
 
     hours_json: Optional[dict] = None
-    pricing_tier: Optional[PricingTier] = None
+    pricing_tier: Optional[str] = None
     amenities: Optional[list[str]] = None
 
     created_by_user_id: Optional[int] = None
     claimed_by_owner_id: Optional[int] = None
 
-    # Aggregated (computed in service, injected before response)
-    avg_rating: Optional[float] = None
+    # Aggregated (Phase 4 will compute real values)
+    average_rating: float = 0.0
     review_count: int = 0
 
     photos: list[PhotoResponse] = []
@@ -100,22 +101,25 @@ class RestaurantResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class RestaurantCard(BaseModel):
-    """Minimal shape returned in search results list."""
+    """Shape returned in search results list."""
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     cuisine_type: Optional[str] = None
+    description: Optional[str] = None
     city: str
-    pricing_tier: Optional[PricingTier] = None
-    avg_rating: Optional[float] = None
+    state: Optional[str] = None
+    pricing_tier: Optional[str] = None
+    amenities: Optional[list[str]] = None
+    average_rating: float = 0.0
     review_count: int = 0
     # First photo for card thumbnail (None if no photos)
     cover_photo_url: Optional[str] = None
 
 
 class RestaurantSearchResponse(BaseModel):
-    results: list[RestaurantCard]
+    items: list[RestaurantCard]
     total: int
     page: int
     limit: int

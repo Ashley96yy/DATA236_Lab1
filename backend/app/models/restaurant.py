@@ -1,11 +1,4 @@
-"""
-SQLAlchemy ORM model for the `restaurants` table.
-
-Schema aligned with IMPLEMENTATION_PLAN.md Phase 3 (section 3.1).
-NOTE: The existing SQL table (db/001_init_schema.sql) is missing several columns
-listed below. A migration will be required before endpoints go live.
-See schema mismatch notes at bottom of this file.
-"""
+"""SQLAlchemy ORM model for the `restaurants` table (Phase 3)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -74,33 +67,8 @@ class Restaurant(Base):
     photos: Mapped[list["RestaurantPhoto"]] = relationship(  # noqa: F821
         "RestaurantPhoto", back_populates="restaurant", cascade="all, delete-orphan"
     )
-    reviews: Mapped[list] = relationship(
-        "Review", back_populates="restaurant", cascade="all, delete-orphan"
-    )
+    # reviews relationship added in Phase 4 once the Review model is defined
 
 
-# ---------------------------------------------------------------------------
-# SCHEMA MISMATCH NOTES (vs db/001_init_schema.sql)
-# ---------------------------------------------------------------------------
-# The live DB table is MISSING these columns that this model expects:
-#   - street          (VARCHAR 255)  — plan calls it out explicitly
-#   - state           (VARCHAR 50)   — present in plan; absent in SQL
-#   - country         (VARCHAR 100)  — absent in SQL
-#   - latitude        (FLOAT)        — required for Phase 7
-#   - longitude       (FLOAT)        — required for Phase 7
-#   - phone           (VARCHAR 30)   — absent in SQL (was "contact_info")
-#   - email           (VARCHAR 255)  — absent in SQL
-#   - hours_json      (JSON)         — SQL has `hours VARCHAR(120)` instead
-#   - amenities       (JSON)         — absent in SQL (critical for Phase 7)
-#   - claimed_by_owner_id (BIGINT FK → owners.id) — absent in SQL
-#
-# The live DB table has these columns NOT in this model (to be renamed/dropped):
-#   - address         → superseded by street + city + state + zip_code + country
-#   - contact_info    → superseded by phone + email
-#   - hours           → superseded by hours_json
-#   - price_tier      → renamed to pricing_tier in plan
-#
-# Action required before endpoints go live:
-#   ALTER TABLE to add missing columns and rename/adjust existing ones.
-#   This will be done via a raw SQL migration script or Alembic (per Decision B).
-# ---------------------------------------------------------------------------
+# Legacy columns (address, contact_info, hours) remain in the DB for seed data
+# compatibility but are not mapped here and not used by the API.
