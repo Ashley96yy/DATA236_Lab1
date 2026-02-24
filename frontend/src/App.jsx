@@ -4,7 +4,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import TopNav from "./components/TopNav";
 import { useAuth } from "./contexts/AuthContext";
+import { FavoritesProvider } from "./contexts/FavoritesContext";
 import AddRestaurantPage from "./pages/AddRestaurantPage";
+import DashboardPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
 import LoginPage from "./pages/LoginPage";
 import OwnerLoginPage from "./pages/OwnerLoginPage";
@@ -29,50 +31,56 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      {!isAuthRoute ? <TopNav /> : null}
-      <main className={isAuthRoute ? "page-plain" : "page-wrap"}>
-        <Routes>
-          {/* ── Public ── */}
-          <Route path="/" element={<ExplorePage />} />
-          <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
+    <FavoritesProvider>
+      <div className="app-shell">
+        {!isAuthRoute ? <TopNav /> : null}
+        <main className={isAuthRoute ? "page-plain" : "page-wrap"}>
+          <Routes>
+            {/* ── Public ── */}
+            <Route path="/" element={<ExplorePage />} />
+            <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
 
-          {/* ── Auth (public only) ── */}
-          <Route
-            path="/login"
-            element={<PublicRoute><LoginPage /></PublicRoute>}
-          />
-          <Route
-            path="/signup"
-            element={<PublicRoute><SignupPage /></PublicRoute>}
-          />
-          <Route
-            path="/owner/login"
-            element={<PublicRoute><OwnerLoginPage /></PublicRoute>}
-          />
-          <Route
-            path="/owner/signup"
-            element={<PublicRoute><OwnerSignupPage /></PublicRoute>}
-          />
+            {/* ── Auth (public only) ── */}
+            <Route
+              path="/login"
+              element={<PublicRoute><LoginPage /></PublicRoute>}
+            />
+            <Route
+              path="/signup"
+              element={<PublicRoute><SignupPage /></PublicRoute>}
+            />
+            <Route
+              path="/owner/login"
+              element={<PublicRoute><OwnerLoginPage /></PublicRoute>}
+            />
+            <Route
+              path="/owner/signup"
+              element={<PublicRoute><OwnerSignupPage /></PublicRoute>}
+            />
 
-          {/* ── Protected ── */}
-          <Route
-            path="/add-restaurant"
-            element={<ProtectedRoute><AddRestaurantPage /></ProtectedRoute>}
-          />
-          <Route
-            path="/profile"
-            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
-          />
-          <Route
-            path="/preferences"
-            element={<ProtectedRoute><PreferencesPage /></ProtectedRoute>}
-          />
+            {/* ── Protected ── */}
+            <Route
+              path="/add-restaurant"
+              element={<ProtectedRoute><AddRestaurantPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/dashboard"
+              element={<ProtectedRoute><DashboardPage /></ProtectedRoute>}
+            />
+            <Route
+              path="/profile"
+              element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
+            />
+            <Route
+              path="/preferences"
+              element={<ProtectedRoute><PreferencesPage /></ProtectedRoute>}
+            />
 
-          {/* ── Fallback ── */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+            {/* ── Fallback ── */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </FavoritesProvider>
   );
 }

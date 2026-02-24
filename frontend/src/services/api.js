@@ -24,5 +24,14 @@ export function extractApiError(error, fallbackMessage = "Request failed.") {
   return apiMessage || legacyMessage || fallbackMessage;
 }
 
+// ── Favorites API helpers ──────────────────────────────────────────────────
+export const favoritesApi = {
+  add: (restaurantId) => api.post(`/favorites/${restaurantId}`),
+  remove: (restaurantId) => api.delete(`/favorites/${restaurantId}`),
+  list: (page = 1, limit = 10) =>
+    api.get("/users/me/favorites", { params: { page, limit } }),
+  history: () => api.get("/users/me/history"),
+};
+
 export { TOKEN_KEY };
 export default api;

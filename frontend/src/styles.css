@@ -940,3 +940,180 @@ button:disabled {
 
 .btn-text--danger { color: #c0392b; }
 .btn-text--danger:hover { color: #922b21; }
+
+/* ═══════════════════════════════════════════════════════════
+   PHASE 5 — Favorites + Dashboard
+═══════════════════════════════════════════════════════════ */
+
+/* ── Favorite button (heart toggle) ── */
+.fav-btn {
+  background: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: transform 0.15s ease, background 0.15s ease;
+  backdrop-filter: blur(4px);
+}
+.fav-btn:hover { transform: scale(1.15); background: rgba(255,255,255,0.95); }
+.fav-btn--active { background: rgba(255, 255, 255, 0.95); }
+
+/* Overlay position on restaurant card photo */
+.rc-fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+
+/* Position on detail hero */
+.detail-hero-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.detail-fav-btn {
+  background: rgba(255,255,255,0.85);
+  font-size: 1.3rem;
+  width: 40px;
+  height: 40px;
+}
+
+/* ── Dashboard page ── */
+.dashboard-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.dashboard-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1c2636;
+  margin: 0 0 24px;
+}
+
+/* ── Tabs ── */
+.dashboard-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e4edf7;
+  margin-bottom: 28px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #5a7394;
+  cursor: pointer;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tab-btn:hover { color: #1c2636; }
+.tab-btn--active {
+  color: #d32323;
+  border-bottom-color: #d32323;
+}
+
+.tab-count {
+  background: #e4edf7;
+  color: #3d4f63;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ── Dashboard panel ── */
+.dashboard-panel { min-height: 200px; }
+
+.dashboard-count {
+  font-size: 0.88rem;
+  color: #5a7394;
+  margin: 0 0 16px;
+}
+
+.dashboard-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: #5a7394;
+}
+.dashboard-empty-icon {
+  font-size: 2.5rem;
+  margin: 0 0 12px;
+}
+
+/* ── History sections ── */
+.history-section { margin-bottom: 40px; }
+
+.history-heading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1c2636;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4edf7;
+}
+
+.history-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-review-card {
+  background: #fff;
+  border: 1px solid #e4edf7;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 2px 6px rgba(19,37,72,0.05);
+}
+
+.history-review-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.history-restaurant-name {
+  font-weight: 700;
+  color: #1c5fa0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.history-restaurant-name:hover { color: #0e3d6e; }
+
+.history-review-date {
+  font-size: 0.78rem;
+  color: #96aabf;
+  margin-left: auto;
+}
+
+.history-review-comment {
+  font-size: 0.88rem;
+  color: #3d4f63;
+  margin: 0;
+  line-height: 1.5;
+}
