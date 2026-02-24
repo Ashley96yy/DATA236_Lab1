@@ -1117,3 +1117,369 @@ button:disabled {
   margin: 0;
   line-height: 1.5;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Phase 6 — Owner UI
+───────────────────────────────────────────────────────────────────────────── */
+
+/* TopNav owner additions */
+.nav-divider {
+  color: #c5d3e0;
+  padding: 0 4px;
+  user-select: none;
+}
+.nav-user-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.nav-user--owner .nav-user-name {
+  color: #b06000;
+}
+.nav-user--owner .btn-logout {
+  background: #f5e6d0;
+  color: #7a4500;
+  border-color: #ddbf8e;
+}
+.nav-user--owner .btn-logout:hover {
+  background: #ead4b0;
+}
+
+/* Owner page layout */
+.owner-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+.owner-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.owner-page-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a2733;
+  margin: 0;
+}
+.owner-page-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-owner-nav {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1.5px solid #c5d3e0;
+  background: #fff;
+  color: #2563b0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-owner-nav:hover {
+  background: #eef4ff;
+  border-color: #2563b0;
+}
+
+/* Owner stat cards */
+.owner-stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+.owner-stat-card {
+  flex: 1 1 140px;
+  background: #fff;
+  border: 1.5px solid #e0eaf4;
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 130px;
+}
+.owner-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a2733;
+  line-height: 1.1;
+}
+.owner-stat-label {
+  font-size: 0.8rem;
+  color: #6b8099;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Section headings */
+.owner-section {
+  margin-bottom: 32px;
+}
+.owner-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1a2733;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid #e8f0f8;
+}
+
+/* Rating distribution bars */
+.owner-rating-dist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 440px;
+}
+.owner-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.owner-rating-star {
+  font-size: 0.88rem;
+  color: #f59e0b;
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.owner-rating-bar-track {
+  flex: 1;
+  height: 10px;
+  background: #e8f0f8;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.owner-rating-bar-fill {
+  height: 100%;
+  background: #f59e0b;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+  min-width: 0;
+}
+.owner-rating-count {
+  font-size: 0.82rem;
+  color: #6b8099;
+  width: 24px;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+/* Owner restaurant card */
+.owner-rc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.owner-rc {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #fff;
+  border: 1.5px solid #e0eaf4;
+  border-radius: 10px;
+  padding: 16px 20px;
+  gap: 16px;
+  transition: box-shadow 0.15s;
+}
+.owner-rc:hover {
+  box-shadow: 0 2px 10px rgba(37, 99, 176, 0.1);
+}
+.owner-rc-body {
+  flex: 1;
+  min-width: 0;
+}
+.owner-rc-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1a2733;
+  margin: 0 0 4px;
+}
+.owner-rc-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #6b8099;
+  margin: 0 0 6px;
+  flex-wrap: wrap;
+}
+.owner-rc-cuisine {
+  color: #2563b0;
+  font-weight: 500;
+}
+.owner-rc-rating {
+  font-size: 0.9rem;
+  color: #1a2733;
+  margin: 0 0 4px;
+}
+.owner-rc-review-count {
+  color: #6b8099;
+  font-size: 0.85rem;
+}
+.owner-rc-no-reviews {
+  font-size: 0.85rem;
+  color: #96aabf;
+  margin: 0 0 4px;
+}
+.owner-rc-tier {
+  display: inline-block;
+  font-size: 0.78rem;
+  background: #eef4ff;
+  color: #2563b0;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-weight: 600;
+}
+.owner-rc-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.btn-owner-action {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1.5px solid #2563b0;
+  background: #2563b0;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.btn-owner-action:hover { background: #1a4d96; border-color: #1a4d96; }
+.btn-owner-action--secondary {
+  background: #fff;
+  color: #2563b0;
+}
+.btn-owner-action--secondary:hover {
+  background: #eef4ff;
+}
+
+/* Owner empty state */
+.owner-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: #6b8099;
+}
+.owner-empty p { margin: 6px 0; }
+
+/* Owner review list */
+.owner-reviews-count {
+  font-size: 0.88rem;
+  color: #6b8099;
+  margin: 0 0 16px;
+}
+.owner-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.owner-review-card {
+  background: #fff;
+  border: 1.5px solid #e0eaf4;
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+.owner-review-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.owner-review-user {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #1a2733;
+}
+.owner-review-date {
+  font-size: 0.78rem;
+  color: #96aabf;
+  margin-left: auto;
+}
+.owner-review-comment {
+  font-size: 0.88rem;
+  color: #3d4f63;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Owner edit form */
+.owner-edit-form .field-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: #96aabf;
+  margin-top: 3px;
+}
+.owner-edit-form .hours-textarea {
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+.owner-form-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.btn-primary {
+  padding: 10px 22px;
+  background: #2563b0;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: #1a4d96; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary {
+  padding: 10px 22px;
+  background: #fff;
+  color: #4a6075;
+  border: 1.5px solid #c5d3e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover:not(:disabled) { background: #f4f8fc; }
+.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Alert banners */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.92rem;
+}
+.alert--error {
+  background: #fff0f0;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+.alert--success {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .owner-stats-row { flex-direction: column; }
+  .owner-rc { flex-direction: column; }
+  .owner-rc-actions { flex-direction: row; }
+  .owner-page-header { flex-direction: column; align-items: flex-start; }
+}

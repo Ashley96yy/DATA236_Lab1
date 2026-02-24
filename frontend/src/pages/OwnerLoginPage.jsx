@@ -2,13 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import ProjectLogo from "../components/ProjectLogo";
-import api, { extractApiError } from "../services/api";
-
-const OWNER_TOKEN_KEY = "yelp_lab1_owner_token";
-const OWNER_PROFILE_KEY = "yelp_lab1_owner";
+import { useOwnerAuth } from "../contexts/OwnerAuthContext";
+import api, { extractApiError, ownerApi } from "../services/api";
 
 export default function OwnerLoginPage() {
   const navigate = useNavigate();
+  const { ownerLogin } = useOwnerAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,18 +25,16 @@ export default function OwnerLoginPage() {
     try {
       const loginResponse = await api.post("/auth/owner/login", {
         email: form.email.trim(),
-        password: form.password
+        password: form.password,
       });
 
       const token = loginResponse.data.access_token;
-      localStorage.setItem(OWNER_TOKEN_KEY, token);
-
-      const meResponse = await api.get("/owners/me", {
-        headers: { Authorization: `Bearer ${token}` }
+      const meResponse = await ownerApi.get("/owners/me", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      localStorage.setItem(OWNER_PROFILE_KEY, JSON.stringify(meResponse.data));
 
-      navigate("/", { replace: true });
+      ownerLogin({ accessToken: token, owner: meResponse.data });
+      navigate("/owner/dashboard", { replace: true });
     } catch (requestError) {
       setError(extractApiError(requestError, "Owner login failed."));
     } finally {
