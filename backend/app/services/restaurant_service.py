@@ -21,6 +21,7 @@ from app.core.config import get_settings
 from app.models.owner import Owner
 from app.models.restaurant import Restaurant
 from app.models.restaurant_photo import RestaurantPhoto
+from app.models.review import Review
 from app.models.user import User
 from app.schemas.restaurant import (
     PhotoResponse,
@@ -54,7 +55,11 @@ def _build_photo_url(base_url: str, filename: str) -> str:
     return f"{base_url.rstrip('/')}/uploads/restaurant_photos/{filename}"
 
 
-def _orm_to_response(r: Restaurant) -> RestaurantResponse:
+def _orm_to_response(
+    r: Restaurant,
+    average_rating: float = 0.0,
+    review_count: int = 0,
+) -> RestaurantResponse:
     photos = [
         PhotoResponse(
             id=p.id,
@@ -84,15 +89,19 @@ def _orm_to_response(r: Restaurant) -> RestaurantResponse:
         amenities=r.amenities,
         created_by_user_id=r.created_by_user_id,
         claimed_by_owner_id=r.claimed_by_owner_id,
-        average_rating=0.0,
-        review_count=0,
+        average_rating=average_rating,
+        review_count=review_count,
         photos=photos,
         created_at=r.created_at,
         updated_at=r.updated_at,
     )
 
 
-def _orm_to_card(r: Restaurant) -> RestaurantCard:
+def _orm_to_card(
+    r: Restaurant,
+    average_rating: float = 0.0,
+    review_count: int = 0,
+) -> RestaurantCard:
     cover = r.photos[0].photo_url if r.photos else None
     return RestaurantCard(
         id=r.id,
@@ -103,10 +112,26 @@ def _orm_to_card(r: Restaurant) -> RestaurantCard:
         state=r.state,
         pricing_tier=r.pricing_tier,
         amenities=r.amenities,
-        average_rating=0.0,
-        review_count=0,
+        average_rating=average_rating,
+        review_count=review_count,
         cover_photo_url=cover,
     )
+
+
+def _fetch_ratings(db: Session, restaurant_ids: list[int]) -> dict[int, tuple[float, int]]:
+    """Return {restaurant_id: (avg_rating, review_count)} for a batch of IDs."""
+    if not restaurant_ids:
+        return {}
+    rows = db.execute(
+        select(
+            Review.restaurant_id,
+            func.avg(Review.rating).label("avg"),
+            func.count(Review.id).label("cnt"),
+        )
+        .where(Review.restaurant_id.in_(restaurant_ids))
+        .group_by(Review.restaurant_id)
+    ).all()
+    return {row.restaurant_id: (round(float(row.avg), 2), int(row.cnt)) for row in rows}
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +166,7 @@ def create_restaurant(
     db.commit()
     db.refresh(restaurant)
     restaurant.photos = []   # avoid lazy-load on fresh object
-    return _orm_to_response(restaurant)
+    return _orm_to_response(restaurant, average_rating=0.0, review_count=0)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +174,7 @@ def create_restaurant(
 # ---------------------------------------------------------------------------
 
 def get_restaurant_by_id(db: Session, restaurant_id: int) -> RestaurantResponse:
-    """Return a single restaurant with photos loaded; raise ServiceNotFound if absent."""
+    """Return a single restaurant with photos + real rating; raise ServiceNotFound if absent."""
     restaurant = db.execute(
         select(Restaurant)
         .options(selectinload(Restaurant.photos))
@@ -159,7 +184,9 @@ def get_restaurant_by_id(db: Session, restaurant_id: int) -> RestaurantResponse:
     if restaurant is None:
         raise ServiceNotFound(f"Restaurant {restaurant_id} not found.")
 
-    return _orm_to_response(restaurant)
+    ratings = _fetch_ratings(db, [restaurant_id])
+    avg, cnt = ratings.get(restaurant_id, (0.0, 0))
+    return _orm_to_response(restaurant, average_rating=avg, review_count=cnt)
 
 
 def search_restaurants(
@@ -211,8 +238,14 @@ def search_restaurants(
     stmt = stmt.offset((page - 1) * limit).limit(limit)
     restaurants = db.execute(stmt).scalars().all()
 
+    rids = [r.id for r in restaurants]
+    ratings = _fetch_ratings(db, rids)
+
     return RestaurantSearchResponse(
-        items=[_orm_to_card(r) for r in restaurants],
+        items=[
+            _orm_to_card(r, *ratings.get(r.id, (0.0, 0)))
+            for r in restaurants
+        ],
         total=total,
         page=page,
         limit=limit,

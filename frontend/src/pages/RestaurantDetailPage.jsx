@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api, { extractApiError } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -49,12 +49,41 @@ export default function RestaurantDetailPage() {
   const [photoError, setPhotoError] = useState("");
   const [photoSuccess, setPhotoSuccess] = useState("");
 
-  // selected photo for lightbox
+  // lightbox
   const [lightboxUrl, setLightboxUrl] = useState(null);
+
+  // reviews
+  const [reviews, setReviews] = useState([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState("");
+  const [editingReview, setEditingReview] = useState(null); // { id, rating, comment }
+  const [hoverRating, setHoverRating] = useState(0);
 
   useEffect(() => {
     loadRestaurant();
   }, [id]);
+
+  const loadReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    try {
+      const resp = await api.get(`/restaurants/${id}/reviews?limit=50`);
+      setReviews(resp.data.items || []);
+      setReviewsTotal(resp.data.total || 0);
+    } catch {
+      // non-blocking
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   async function loadRestaurant() {
     setLoading(true);
@@ -285,20 +314,178 @@ export default function RestaurantDetailPage() {
             </section>
           )}
 
-          {/* ── Reviews placeholder ── */}
+          {/* ── Reviews ── */}
           <section className="detail-section">
-            <h2 className="section-heading">Reviews</h2>
-            <div className="reviews-placeholder">
-              <p className="muted">Reviews coming in Phase 4.</p>
-              <button
-                id="write-review-btn"
-                className="btn-primary"
-                disabled
-                title="Available in Phase 4"
-              >
-                ✍️ Write a Review
-              </button>
-            </div>
+            <h2 className="section-heading">
+              Reviews {reviewsTotal > 0 && <span className="reviews-count-badge">({reviewsTotal})</span>}
+            </h2>
+
+            {/* Write / Edit review form */}
+            {isAuthenticated && (
+              <div className="review-form-card">
+                <h3 className="review-form-title">
+                  {editingReview ? "Edit Your Review" : "Write a Review"}
+                </h3>
+
+                {reviewError && <div className="alert alert--error">{reviewError}</div>}
+                {reviewSuccess && <div className="alert alert--success">{reviewSuccess}</div>}
+
+                {/* Star selector */}
+                <div className="star-selector">
+                  {[1, 2, 3, 4, 5].map((s) => {
+                    const active = editingReview
+                      ? s <= (hoverRating || editingReview.rating)
+                      : s <= (hoverRating || reviewRating);
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        className={`star-btn${active ? " active" : ""}`}
+                        onMouseEnter={() => setHoverRating(s)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => {
+                          if (editingReview) setEditingReview({ ...editingReview, rating: s });
+                          else setReviewRating(s);
+                        }}
+                        aria-label={`${s} star${s > 1 ? "s" : ""}`}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                  <span className="star-label">
+                    {(editingReview ? editingReview.rating : reviewRating) > 0
+                      ? `${editingReview ? editingReview.rating : reviewRating} / 5`
+                      : "Select rating"}
+                  </span>
+                </div>
+
+                <textarea
+                  className="review-textarea"
+                  placeholder="Share your experience (optional)"
+                  value={editingReview ? editingReview.comment : reviewComment}
+                  onChange={(e) => {
+                    if (editingReview) setEditingReview({ ...editingReview, comment: e.target.value });
+                    else setReviewComment(e.target.value);
+                  }}
+                  rows={3}
+                />
+
+                <div className="review-form-actions">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={reviewSubmitting || (editingReview ? editingReview.rating < 1 : reviewRating < 1)}
+                    onClick={async () => {
+                      setReviewError("");
+                      setReviewSuccess("");
+                      setReviewSubmitting(true);
+                      try {
+                        if (editingReview) {
+                          await api.put(`/reviews/${editingReview.id}`, {
+                            rating: editingReview.rating,
+                            comment: editingReview.comment || null,
+                          });
+                          setReviewSuccess("Review updated!");
+                          setEditingReview(null);
+                        } else {
+                          await api.post(`/restaurants/${id}/reviews`, {
+                            rating: reviewRating,
+                            comment: reviewComment || null,
+                          });
+                          setReviewSuccess("Review submitted!");
+                          setReviewRating(0);
+                          setReviewComment("");
+                        }
+                        await loadReviews();
+                        await loadRestaurant();
+                      } catch (err) {
+                        setReviewError(extractApiError(err, "Could not submit review."));
+                      } finally {
+                        setReviewSubmitting(false);
+                      }
+                    }}
+                  >
+                    {reviewSubmitting ? "Saving…" : editingReview ? "Save Changes" : "Submit Review"}
+                  </button>
+
+                  {editingReview && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => { setEditingReview(null); setReviewError(""); }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Review list */}
+            {reviewsLoading ? (
+              <div className="spinner" style={{ margin: "16px auto" }} />
+            ) : reviews.length === 0 ? (
+              <p className="muted" style={{ marginTop: 12 }}>
+                No reviews yet.{isAuthenticated ? " Be the first!" : " Log in to write one."}
+              </p>
+            ) : (
+              <div className="review-list">
+                {reviews.map((rv) => (
+                  <div key={rv.id} className="review-card">
+                    <div className="review-header">
+                      <div className="review-meta">
+                        <span className="review-author">{rv.user_name}</span>
+                        <span className="review-date">
+                          {new Date(rv.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="review-stars">
+                        {[1,2,3,4,5].map((s) => (
+                          <span key={s} className={s <= rv.rating ? "star filled" : "star"}>★</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {rv.comment && <p className="review-comment">{rv.comment}</p>}
+
+                    {/* Edit / Delete — only for own reviews */}
+                    {isAuthenticated && user?.name === rv.user_name && (
+                      <div className="review-actions">
+                        <button
+                          type="button"
+                          className="btn-text"
+                          onClick={() => {
+                            setEditingReview({ id: rv.id, rating: rv.rating, comment: rv.comment || "" });
+                            setReviewError("");
+                            setReviewSuccess("");
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-text btn-text--danger"
+                          onClick={async () => {
+                            if (!window.confirm("Delete this review?")) return;
+                            try {
+                              await api.delete(`/reviews/${rv.id}`);
+                              await loadReviews();
+                              await loadRestaurant();
+                            } catch (err) {
+                              setReviewError(extractApiError(err, "Could not delete review."));
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 
