@@ -1,40 +1,23 @@
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import TopNav from "./components/TopNav";
 import { useAuth } from "./contexts/AuthContext";
+import AddRestaurantPage from "./pages/AddRestaurantPage";
+import ExplorePage from "./pages/ExplorePage";
 import LoginPage from "./pages/LoginPage";
 import OwnerLoginPage from "./pages/OwnerLoginPage";
 import OwnerSignupPage from "./pages/OwnerSignupPage";
 import PreferencesPage from "./pages/PreferencesPage";
 import ProfilePage from "./pages/ProfilePage";
+import RestaurantDetailPage from "./pages/RestaurantDetailPage";
 import SignupPage from "./pages/SignupPage";
-
-function ExplorePage() {
-  return (
-    <section className="page-card">
-      <h1 className="auth-title">Explore Restaurants</h1>
-      <p className="muted">Phase 0 public home page placeholder.</p>
-      <p>
-        Continue with <Link to="/login">Login</Link> or <Link to="/signup">Signup</Link>.
-      </p>
-    </section>
-  );
-}
-
-function PlaceholderPage({ title, description }) {
-  return (
-    <section className="page-card">
-      <h1>{title}</h1>
-      <p className="muted">{description}</p>
-    </section>
-  );
-}
 
 export default function App() {
   const location = useLocation();
-  const { isAuthenticated, isAuthReady } = useAuth();
+  const { isAuthReady } = useAuth();
+
   const isAuthRoute =
     location.pathname === "/login" ||
     location.pathname === "/signup" ||
@@ -42,7 +25,7 @@ export default function App() {
     location.pathname === "/owner/signup";
 
   if (!isAuthReady) {
-    return <div className="page-status">Loading...</div>;
+    return <div className="page-status">Loading…</div>;
   }
 
   return (
@@ -50,75 +33,43 @@ export default function App() {
       {!isAuthRoute ? <TopNav /> : null}
       <main className={isAuthRoute ? "page-plain" : "page-wrap"}>
         <Routes>
+          {/* ── Public ── */}
           <Route path="/" element={<ExplorePage />} />
+          <Route path="/restaurant/:id" element={<RestaurantDetailPage />} />
+
+          {/* ── Auth (public only) ── */}
           <Route
             path="/login"
-            element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            }
+            element={<PublicRoute><LoginPage /></PublicRoute>}
           />
           <Route
             path="/signup"
-            element={
-              <PublicRoute>
-                <SignupPage />
-              </PublicRoute>
-            }
+            element={<PublicRoute><SignupPage /></PublicRoute>}
           />
           <Route
             path="/owner/login"
-            element={
-              <PublicRoute>
-                <OwnerLoginPage />
-              </PublicRoute>
-            }
+            element={<PublicRoute><OwnerLoginPage /></PublicRoute>}
           />
           <Route
             path="/owner/signup"
-            element={
-              <PublicRoute>
-                <OwnerSignupPage />
-              </PublicRoute>
-            }
+            element={<PublicRoute><OwnerSignupPage /></PublicRoute>}
           />
+
+          {/* ── Protected ── */}
           <Route
-            path="/restaurant/:id"
-            element={
-              <PlaceholderPage
-                title="Restaurant Details"
-                description="Phase 0 route placeholder for public restaurant details."
-              />
-            }
+            path="/add-restaurant"
+            element={<ProtectedRoute><AddRestaurantPage /></ProtectedRoute>}
           />
           <Route
             path="/profile"
-            element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            }
+            element={<ProtectedRoute><ProfilePage /></ProtectedRoute>}
           />
           <Route
             path="/preferences"
-            element={
-              <ProtectedRoute>
-                <PreferencesPage />
-              </ProtectedRoute>
-            }
+            element={<ProtectedRoute><PreferencesPage /></ProtectedRoute>}
           />
-          <Route
-            path="/add-restaurant"
-            element={
-              <ProtectedRoute>
-                <PlaceholderPage
-                  title="Add Restaurant"
-                  description="Phase 0 route placeholder for protected add-restaurant page."
-                />
-              </ProtectedRoute>
-            }
-          />
+
+          {/* ── Fallback ── */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
