@@ -18,20 +18,21 @@ export default function TopNav() {
         <ProjectLogo to="/" compact />
         <nav className="top-links">
           <Link to="/">Explore</Link>
-          {!isAuthenticated ? <Link to="/login">Login</Link> : null}
-          {!isAuthenticated ? <Link to="/signup">Signup</Link> : null}
-          {!isAuthenticated ? <Link to="/owner/login">Owner Login</Link> : null}
-          {isAuthenticated ? <Link to="/profile">Profile</Link> : null}
-          {isAuthenticated ? <Link to="/preferences">Preferences</Link> : null}
+          {isAuthenticated && <Link to="/add-restaurant">+ Add Restaurant</Link>}
+          {!isAuthenticated && <Link to="/login">Login</Link>}
+          {!isAuthenticated && <Link to="/signup">Sign Up</Link>}
+          {!isAuthenticated && <Link to="/owner/login">Owner Login</Link>}
+          {isAuthenticated && <Link to="/profile">Profile</Link>}
+          {isAuthenticated && <Link to="/preferences">Preferences</Link>}
         </nav>
-        {isAuthenticated ? (
+        {isAuthenticated && (
           <div className="nav-user">
-            <span>{user?.name || "User"}</span>
-            <button type="button" onClick={handleLogout}>
+            <span className="nav-user-name">{user?.name || "User"}</span>
+            <button type="button" className="btn-logout" onClick={handleLogout}>
               Logout
             </button>
           </div>
-        ) : null}
+        )}
       </div>
     </header>
   );
