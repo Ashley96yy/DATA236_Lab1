@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
+import RestaurantCard from "../components/RestaurantCard";
 import api, { extractApiError } from "../services/api";
 
 const SORT_OPTIONS = [
@@ -8,79 +10,6 @@ const SORT_OPTIONS = [
   { value: "review_count", label: "Most Reviewed" },
 ];
 
-const PRICING_LABELS = {
-  $: "$ · Inexpensive",
-  $$: "$$ · Moderate",
-  $$$: "$$$ · Expensive",
-  $$$$: "$$$$ · Very Expensive",
-};
-
-function StarRating({ rating }) {
-  const stars = Math.round(rating);
-  return (
-    <span className="star-rating" aria-label={`${rating} out of 5`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= stars ? "star filled" : "star"}>
-          ★
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function RestaurantCardItem({ restaurant, onClick }) {
-  const amenityList = Array.isArray(restaurant.amenities)
-    ? restaurant.amenities.slice(0, 3)
-    : [];
-
-  return (
-    <article className="restaurant-card" onClick={onClick} tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
-      role="button" aria-label={`View details for ${restaurant.name}`}>
-      <div className="rc-photo">
-        {restaurant.cover_photo_url ? (
-          <img src={restaurant.cover_photo_url} alt={restaurant.name} />
-        ) : (
-          <div className="rc-photo-placeholder">
-            <span>🍴</span>
-          </div>
-        )}
-        {restaurant.pricing_tier && (
-          <span className="rc-badge">{restaurant.pricing_tier}</span>
-        )}
-      </div>
-      <div className="rc-body">
-        <h3 className="rc-name">{restaurant.name}</h3>
-        <p className="rc-meta">
-          {restaurant.cuisine_type && (
-            <span className="rc-cuisine">{restaurant.cuisine_type}</span>
-          )}
-          <span className="rc-location">
-            {restaurant.city}{restaurant.state ? `, ${restaurant.state}` : ""}
-          </span>
-        </p>
-        {restaurant.average_rating > 0 ? (
-          <div className="rc-rating">
-            <StarRating rating={restaurant.average_rating} />
-            <span className="rc-review-count">({restaurant.review_count})</span>
-          </div>
-        ) : (
-          <p className="rc-no-reviews">No reviews yet</p>
-        )}
-        {restaurant.description && (
-          <p className="rc-description">{restaurant.description.slice(0, 100)}{restaurant.description.length > 100 ? "…" : ""}</p>
-        )}
-        {amenityList.length > 0 && (
-          <div className="rc-amenities">
-            {amenityList.map((a) => (
-              <span key={a} className="rc-amenity-tag">{a}</span>
-            ))}
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
 
 export default function ExplorePage() {
   const navigate = useNavigate();
@@ -237,7 +166,7 @@ export default function ExplorePage() {
           </p>
           <div className="restaurant-grid">
             {results.items.map((r) => (
-              <RestaurantCardItem
+              <RestaurantCard
                 key={r.id}
                 restaurant={r}
                 onClick={() => navigate(`/restaurant/${r.id}`)}

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
+import FavoriteButton from "../components/FavoriteButton";
 import api, { extractApiError } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -200,7 +202,10 @@ export default function RestaurantDetailPage() {
       {/* ── Hero ── */}
       <div className="detail-hero" style={heroPhoto ? { backgroundImage: `url(${heroPhoto})` } : {}}>
         <div className="detail-hero-overlay">
-          <button className="btn-back" onClick={() => navigate(-1)}>← Back</button>
+          <div className="detail-hero-topbar">
+            <button className="btn-back" onClick={() => navigate(-1)}>← Back</button>
+            <FavoriteButton restaurantId={r.id} className="detail-fav-btn" />
+          </div>
           <div className="detail-hero-content">
             {r.pricing_tier && <span className="detail-pricing-badge">{r.pricing_tier}</span>}
             <h1 className="detail-name">{r.name}</h1>
