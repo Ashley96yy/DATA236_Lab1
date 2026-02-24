@@ -1,19 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, JSON, String, Text, text
+from sqlalchemy import DateTime, JSON, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-
-gender_enum = Enum(
-    "male",
-    "female",
-    "non_binary",
-    "other",
-    "prefer_not_to_say",
-    name="gender_enum",
-)
 
 
 class User(Base):
@@ -29,7 +20,8 @@ class User(Base):
     state: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     country: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)
     languages: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
-    gender: Mapped[Optional[str]] = mapped_column(gender_enum, nullable=True)
+    # String(20) so MySQL's title-case 'Male'/'Female'/'Other' seed values pass through
+    gender: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")
