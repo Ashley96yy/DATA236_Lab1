@@ -1483,3 +1483,248 @@ button:disabled {
   .owner-rc-actions { flex-direction: row; }
   .owner-page-header { flex-direction: column; align-items: flex-start; }
 }
+
+/* AI assistant widget */
+.ai-widget-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+  border: 0;
+  border-radius: 999px;
+  background: #d32323;
+  color: #fff;
+  font-weight: 700;
+  padding: 12px 18px;
+  box-shadow: 0 10px 26px rgba(211, 35, 35, 0.3);
+  cursor: pointer;
+}
+
+.ai-widget-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(430px, calc(100vw - 24px));
+  height: min(78vh, 680px);
+  min-width: 340px;
+  min-height: 420px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  z-index: 35;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 22px 40px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ai-widget-header {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
+}
+
+.ai-widget-title {
+  margin: 0;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.ai-widget-subtitle {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.ai-widget-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-widget-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.ai-widget-login-block {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.ai-widget-login-block p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.ai-widget-messages {
+  padding: 12px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+  flex: 1;
+  min-height: 0;
+}
+
+.ai-msg {
+  max-width: 92%;
+  border-radius: 10px;
+  padding: 10px 11px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.ai-msg--user {
+  align-self: flex-end;
+  background: #d32323;
+  color: #fff;
+  border-color: #d32323;
+}
+
+.ai-msg--assistant {
+  align-self: flex-start;
+}
+
+.ai-msg-content {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
+.ai-suggestion-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ai-suggestion-card {
+  text-align: left;
+  border: 1px solid #d9e4f2;
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px 9px;
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+}
+
+.ai-suggestion-name {
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.ai-suggestion-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ai-suggestion-reason {
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.35;
+}
+
+.ai-widget-quick-prompts {
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: #fff;
+}
+
+.ai-quick-btn {
+  border: 1px solid #d5deeb;
+  background: #f8fbff;
+  color: #1e3a5f;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.ai-widget-input-row {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  background: #fff;
+}
+
+.ai-widget-error {
+  margin: 0;
+  padding: 0 10px 8px;
+  font-size: 0.84rem;
+}
+
+.ai-widget-resizer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px 0 10px 0;
+  background: transparent;
+  cursor: nwse-resize;
+  z-index: 5;
+  padding: 0;
+  touch-action: none;
+  opacity: 0.8;
+}
+
+.ai-widget-resizer::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  background:
+    linear-gradient(135deg, transparent 45%, #94a3b8 45%, #94a3b8 55%, transparent 55%),
+    linear-gradient(135deg, transparent 25%, #94a3b8 25%, #94a3b8 35%, transparent 35%),
+    linear-gradient(135deg, transparent 65%, #94a3b8 65%, #94a3b8 75%, transparent 75%);
+  opacity: 0.95;
+}
+
+@media (max-width: 480px) {
+  .ai-widget-panel {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    min-width: 0;
+    bottom: 8px;
+    height: 82vh;
+    min-height: 320px;
+    max-height: 82vh;
+    resize: none;
+  }
+
+  .ai-widget-resizer {
+    display: none;
+  }
+
+  .ai-widget-launcher {
+    right: 10px;
+    bottom: 10px;
+    padding: 10px 14px;
+  }
+}
