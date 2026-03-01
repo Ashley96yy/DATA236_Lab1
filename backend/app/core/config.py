@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-3-5-haiku-latest"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

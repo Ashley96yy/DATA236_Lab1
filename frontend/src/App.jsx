@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import OwnerProtectedRoute from "./components/OwnerProtectedRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import AIChatWidget from "./components/AIChatWidget";
 import TopNav from "./components/TopNav";
 import { useAuth } from "./contexts/AuthContext";
 import { FavoritesProvider } from "./contexts/FavoritesContext";
@@ -110,6 +111,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
+          {!isAuthRoute ? <AIChatWidget /> : null}
         </div>
       </FavoritesProvider>
     </OwnerAuthProvider>

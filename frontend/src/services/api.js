@@ -47,6 +47,11 @@ export const favoritesApi = {
   history: () => api.get("/users/me/history"),
 };
 
+// ── AI assistant API helpers ────────────────────────────────────────────────
+export const aiAssistantApi = {
+  chat: (payload) => api.post("/ai-assistant/chat", payload),
+};
+
 // ── Owner management API helpers ──────────────────────────────────────────
 export const ownerMgmtApi = {
   getProfile: () => ownerApi.get("/owners/me"),

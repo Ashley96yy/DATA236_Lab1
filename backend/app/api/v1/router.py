@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.endpoints.ai_assistant import router as ai_assistant_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.favorites import router as favorites_router
 from app.api.v1.endpoints.health import router as health_router
@@ -18,3 +19,4 @@ api_router.include_router(users_router)
 api_router.include_router(restaurants_router)
 api_router.include_router(reviews_router)
 api_router.include_router(favorites_router)
+api_router.include_router(ai_assistant_router)
