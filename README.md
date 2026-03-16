@@ -1,157 +1,293 @@
 # DATA236 Lab 1 - Yelp Prototype
 
-This repository includes project planning docs, MySQL scripts, and a minimal FastAPI backend scaffold for Week 1.
+Yelp-style restaurant discovery and review platform built with `React`, `FastAPI`, `MySQL`, and an AI assistant that supports vector retrieval.
+
+## Stack
+
+- Frontend: `React`, `Vite`, `React Router`, `Axios`
+- Backend: `FastAPI`, `SQLAlchemy`, `PyMySQL`, `JWT`, `bcrypt`
+- Database: `MySQL`
+- AI: `LangChain`, `Chroma`, `OpenAI` or local fallback embeddings, `Tavily`
+
+## Implemented Features
+
+### User / Reviewer
+- User signup, login, logout
+- Profile editing and avatar upload
+- Dining preference management
+- Explore/search page with filters and sorting
+- Restaurant details page
+- Add restaurant listing
+- Review create, edit, delete
+- Favorites
+- User history
+- AI assistant chat widget
+
+### Owner
+- Owner signup, login, logout
+- Owner profile management
+- Create restaurant listing as owner
+- Claim existing restaurant
+- Edit claimed restaurant
+- View reviews for claimed restaurants
+- Owner dashboard with analytics
+
+### AI Assistant
+- `POST /api/v1/ai-assistant/chat`
+- Loads user preferences
+- Interprets natural language queries
+- Uses vector retrieval plus MySQL reranking
+- Supports follow-up questions
+- Optionally enriches answers with Tavily live context
+
+## Project Structure
+
+```text
+backend/    FastAPI app, services, schemas, scripts, tests
+frontend/   React app
+db/         MySQL schema and seed SQL
+docs/       planning and reference docs
+```
+
+## Prerequisites
+
+- Python `3.12+`
+- Node.js `18+`
+- MySQL `8.0+`
 
 ## Database Setup
 
-### Prerequisites
-- MySQL 8.0+
-- A MySQL user with permissions to create databases and tables
+Run from the repository root:
 
-### Files
-- `db/001_init_schema.sql`: create database and tables
-- `db/002_seed_sample_data.sql`: insert sample users/restaurants/reviews/favorites/history
-- `db/003_quick_check_queries.sql`: quick verification queries
-
-### Run Steps
-1. Initialize schema:
 ```bash
 mysql -u <username> -p < db/001_init_schema.sql
-```
-2. Seed sample data:
-```bash
+mysql -u <username> -p < db/003_phase3_schema.sql
+mysql -u <username> -p < db/004_phase4_reviews.sql
 mysql -u <username> -p < db/002_seed_sample_data.sql
 ```
-3. Run quick checks:
+
+Optional quick verification:
+
 ```bash
 mysql -u <username> -p < db/003_quick_check_queries.sql
 ```
 
-### Seed Login Accounts
+Database name:
+
+```text
+yelp_lab1
+```
+
+## Seed Accounts
+
+### User accounts
 - `alice@example.com` / `Passw0rd!`
 - `bob@example.com` / `Passw0rd!`
 
-### Notes
-- Database name: `yelp_lab1`
-- The seed script is designed to be mostly idempotent for core entities.
+### Owner accounts
+- No seeded owner account is required.
+- Create an owner from the UI at `/owner/signup`.
 
-## Backend Bootstrap (Week 1 Step 1)
+## Backend Setup
 
-This repository now includes a minimal FastAPI backend scaffold in `backend/`.
-
-### What is included
-- `GET /api/v1/health` (checks API + DB connectivity)
-- `POST /api/v1/auth/signup` (bcrypt password hashing)
-- `POST /api/v1/auth/login` (JWT issue)
-- `GET /api/v1/auth/me` (Bearer token protected route)
-- `GET /api/v1/users/me` (protected profile read)
-- `PUT /api/v1/users/me` (protected profile update)
-- `GET /api/v1/users/me/preferences` (protected preferences read)
-- `PUT /api/v1/users/me/preferences` (protected preferences update)
-- MySQL environment config via `.env`
-- SQLAlchemy `users` model
-- Scripts for users table bootstrap and DB smoke test
-
-### Run Steps
-1. Create a Python virtual environment and install dependencies:
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-If you recently changed dependencies, run:
-```bash
-pip install --upgrade -r requirements.txt
-```
-If you see a MySQL auth error mentioning `caching_sha2_password`, run:
-```bash
-pip install cryptography
-```
-
-2. Configure environment:
-```bash
 cp .env.example .env
 ```
-Then edit `.env` with your MySQL credentials.
-Also set `JWT_SECRET_KEY` to a long random value for local development.
 
-3. Initialize users table (if needed):
-```bash
-python scripts/init_users_table.py
+Edit `backend/.env` and set at least:
+
+```env
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=...
+MYSQL_PASSWORD=...
+MYSQL_DB=yelp_lab1
+JWT_SECRET_KEY=...
 ```
 
-4. Run DB smoke test (insert + read + delete one temp user):
-```bash
-python scripts/db_smoke.py
+### AI Configuration
+
+You can run the AI assistant in two modes.
+
+#### Option 1: Local / no OpenAI cost
+
+```env
+EMBEDDING_PROVIDER=local
+OPENAI_API_KEY=
+AI_LLM_INTENT_EXTRACTION_ENABLED=false
+AI_RETRIEVAL_TOP_K=8
 ```
 
-5. Start backend:
-```bash
-uvicorn app.main:app --reload
+This uses:
+- local fallback embeddings
+- Chroma vector retrieval
+- MySQL reranking
+- fallback response generation without OpenAI
+
+#### Option 2: OpenAI-backed
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_PROVIDER=openai
+AI_LLM_INTENT_EXTRACTION_ENABLED=false
+AI_RETRIEVAL_TOP_K=8
 ```
 
-### Optional: manage schema with Alembic migrations
-From `backend/`:
-```bash
-alembic revision --autogenerate -m "describe change"
-alembic upgrade head
-```
-Alembic uses the same DB settings from `backend/.env`.
+Optional Tavily enrichment:
 
-6. Verify health endpoint:
-```bash
-curl http://127.0.0.1:8000/api/v1/health
+```env
+TAVILY_API_KEY=...
 ```
 
-7. Quick auth check (optional):
+### Build the Restaurant Vector Index
+
+Run this after the database is ready and whenever restaurant data changes significantly:
+
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test User","email":"test_user@example.com","password":"Passw0rd!"}'
+PYTHONPATH=. .venv/bin/python scripts/rebuild_restaurant_index.py
 ```
 
-## Frontend Bootstrap (Week 1)
+### Start the Backend
 
-Week 1 frontend lives in `frontend/` (React + Vite + React Router + Axios).
+```bash
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-### Implemented Pages
-- `/login`
-- `/signup`
-- `/profile` (protected)
-- `/preferences` (protected)
+Backend URLs:
 
-### Implemented Frontend Features
-- API client with Bearer token interceptor
-- Auth session persistence (localStorage)
-- Route guard for protected pages
-- Public route guard for login/signup
-- Loading/error/success states for Week 1 forms
-- Dine Finder auth layout (logo + left form + right hero illustration)
+- API root health: `http://127.0.0.1:8000/health`
+- Versioned health: `http://127.0.0.1:8000/api/v1/health`
+- Swagger docs: `http://127.0.0.1:8000/docs`
 
-### Run Steps
-1. Install dependencies:
+## Frontend Setup
+
 ```bash
 cd frontend
 npm install
-```
-2. Configure API base URL:
-```bash
 cp .env.example .env
 ```
-`VITE_API_BASE_URL` should point to backend v1 base path, for example:
-`http://127.0.0.1:8000/api/v1`
 
-3. Start frontend:
-```bash
-npm run dev
+Set:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 ```
 
-4. Open app:
-`http://127.0.0.1:5173`
+Start the frontend:
 
-### Optional UI Customization
-- Replace login/signup right-side illustration:
-  `frontend/public/login.png`
-- Project logo component:
-  `frontend/public/app_logo.png` + `frontend/src/components/ProjectLogo.jsx`
+```bash
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Frontend URL:
+
+- `http://127.0.0.1:5173`
+
+## Recommended Local Run Sequence
+
+From the repository root:
+
+1. Start MySQL
+2. Initialize and seed the database
+3. Start the backend
+4. Build the vector index
+5. Start the frontend
+6. Open `http://127.0.0.1:5173`
+
+Example:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+In another terminal:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/rebuild_restaurant_index.py
+```
+
+In another terminal:
+
+```bash
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+## Main Routes
+
+### Public
+- `/`
+- `/restaurant/:id`
+- `/login`
+- `/signup`
+- `/owner/login`
+- `/owner/signup`
+
+### User
+- `/profile`
+- `/preferences`
+- `/dashboard`
+- `/add-restaurant`
+
+### Owner
+- `/owner/dashboard`
+- `/owner/profile`
+- `/owner/restaurants`
+- `/owner/restaurants/new`
+- `/owner/restaurants/:id/edit`
+- `/owner/restaurants/:id/reviews`
+
+## API Summary
+
+### Authentication
+- `POST /api/v1/auth/signup`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/owner/signup`
+- `POST /api/v1/auth/owner/login`
+
+### User
+- `GET /api/v1/users/me`
+- `PUT /api/v1/users/me`
+- `POST /api/v1/users/me/avatar`
+- `GET /api/v1/users/me/preferences`
+- `PUT /api/v1/users/me/preferences`
+- `GET /api/v1/users/me/favorites`
+- `GET /api/v1/users/me/history`
+
+### Restaurants and Reviews
+- `POST /api/v1/restaurants`
+- `GET /api/v1/restaurants`
+- `GET /api/v1/restaurants/{id}`
+- `POST /api/v1/restaurants/{id}/photos`
+- `POST /api/v1/restaurants/{id}/reviews`
+- `GET /api/v1/restaurants/{id}/reviews`
+- `PUT /api/v1/reviews/{id}`
+- `DELETE /api/v1/reviews/{id}`
+
+### Owner Management
+- `GET /api/v1/owners/me`
+- `PUT /api/v1/owners/me`
+- `POST /api/v1/owner/restaurants`
+- `PUT /api/v1/owner/restaurants/{id}`
+- `POST /api/v1/owner/restaurants/{id}/claim`
+- `GET /api/v1/owner/restaurants/{id}/reviews`
+- `GET /api/v1/owner/dashboard`
+
+### AI Assistant
+- `POST /api/v1/ai-assistant/chat`
+
+## Notes
+
+- Do not commit `backend/.env` or any real API keys.
+- `backend/vector_store/` is generated at runtime and ignored by git.
+- If OpenAI quota is unavailable, use local embedding mode.
+- FastAPI Swagger UI is the primary API documentation for this project.
