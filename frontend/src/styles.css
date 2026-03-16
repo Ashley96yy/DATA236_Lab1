@@ -1187,6 +1187,32 @@ button:disabled {
   border-color: #2563b0;
 }
 
+.owner-claim-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.owner-claim-btn {
+  width: 100%;
+}
+
+.owner-claim-status {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f3f6f9;
+  color: #324454;
+  border: 1px solid #d6e0ea;
+}
+
+.owner-claim-status--success {
+  background: #eef8f1;
+  color: #21693a;
+  border-color: #b9dfc6;
+}
+
 /* Owner stat cards */
 .owner-stats-row {
   display: flex;

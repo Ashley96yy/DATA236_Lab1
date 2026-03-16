@@ -13,6 +13,7 @@ from app.models.user_preference import UserPreference
 from app.schemas.ai_assistant import AIChatResponse, ConversationTurn, SuggestedRestaurant
 from app.services.errors import ServiceBadRequest
 from app.services.restaurant_service import _fetch_ratings
+from app.services.restaurant_vector_service import semantic_candidate_search
 
 settings = get_settings()
 
@@ -153,7 +154,7 @@ def generate_chat_response(
         return followup
 
     intent = _extract_intent(clean_message, conversation_history, preferences)
-    ranked = _search_and_rank_restaurants(db, intent, preferences)
+    ranked = _search_and_rank_restaurants(db, clean_message, intent, preferences)
 
     top_ranked = ranked[:5]
     tavily_context = _fetch_tavily_context(top_ranked, intent)
@@ -473,7 +474,7 @@ def _infer_context_names_from_previous_user_query(
     if not has_structured_filters:
         return []
 
-    ranked = _search_and_rank_restaurants(db, intent, preferences)
+    ranked = _search_and_rank_restaurants(db, previous_user_message, intent, preferences)
     names: list[str] = []
     for row in ranked[:3]:
         restaurant = row.get("restaurant")
@@ -622,6 +623,8 @@ def _extract_intent(
     preferences: dict[str, Any],
 ) -> dict[str, Any]:
     heuristic_intent = _extract_intent_heuristic(message, preferences)
+    if not settings.ai_llm_intent_extraction_enabled:
+        return heuristic_intent
     llm_intent = _extract_intent_with_llm(message, conversation_history, preferences)
     if llm_intent is None:
         return heuristic_intent
@@ -775,13 +778,27 @@ def _normalize_intent(intent: dict[str, Any]) -> dict[str, Any]:
 
 def _search_and_rank_restaurants(
     db: Session,
+    message: str,
     intent: dict[str, Any],
     preferences: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    stmt = select(Restaurant).options(selectinload(Restaurant.photos))
+    vector_hits = semantic_candidate_search(
+        db,
+        message=message,
+        intent=intent,
+        preferences=preferences,
+        limit=max(settings.ai_retrieval_top_k, 8),
+    )
+    vector_scores = {hit.restaurant_id: hit.similarity for hit in vector_hits}
+
+    base_stmt = select(Restaurant).options(selectinload(Restaurant.photos))
+    stmt = base_stmt
     cuisines = intent.get("cuisines") or []
     location = intent.get("location")
     keywords = intent.get("keywords") or []
+
+    if vector_scores:
+        stmt = stmt.where(Restaurant.id.in_(list(vector_scores)))
 
     if cuisines:
         stmt = stmt.where(
@@ -803,6 +820,24 @@ def _search_and_rank_restaurants(
         stmt = stmt.where(or_(*keyword_clauses))
 
     restaurants = db.execute(stmt.limit(60)).scalars().all()
+    if not restaurants and vector_scores:
+        fallback_stmt = base_stmt
+        if cuisines:
+            fallback_stmt = fallback_stmt.where(
+                or_(*[Restaurant.cuisine_type.ilike(f"%{cuisine}%") for cuisine in cuisines])
+            )
+        if location:
+            fallback_stmt = fallback_stmt.where(Restaurant.city.ilike(f"%{location}%"))
+        if keywords and not (cuisines or location):
+            keyword_clauses = []
+            for kw in keywords[:4]:
+                pattern = f"%{kw}%"
+                keyword_clauses.append(Restaurant.name.ilike(pattern))
+                keyword_clauses.append(Restaurant.cuisine_type.ilike(pattern))
+                keyword_clauses.append(Restaurant.description.ilike(pattern))
+                keyword_clauses.append(cast(Restaurant.amenities, String).ilike(pattern))
+            fallback_stmt = fallback_stmt.where(or_(*keyword_clauses))
+        restaurants = db.execute(fallback_stmt.limit(60)).scalars().all()
     if not restaurants and cuisines:
         # Keep precision for explicit cuisine asks; avoid falling back to unrelated results.
         return []
@@ -821,6 +856,7 @@ def _search_and_rank_restaurants(
             restaurant=restaurant,
             average_rating=avg_rating,
             review_count=review_count,
+            vector_similarity=vector_scores.get(restaurant.id, 0.0),
             intent=intent,
             preferences=preferences,
         )
@@ -831,6 +867,7 @@ def _search_and_rank_restaurants(
                 "average_rating": avg_rating,
                 "review_count": review_count,
                 "reasons": reasons,
+                "vector_similarity": vector_scores.get(restaurant.id, 0.0),
             }
         )
 
@@ -846,6 +883,7 @@ def _score_restaurant(
     restaurant: Restaurant,
     average_rating: float,
     review_count: int,
+    vector_similarity: float,
     intent: dict[str, Any],
     preferences: dict[str, Any],
 ) -> tuple[float, list[str]]:
@@ -860,6 +898,13 @@ def _score_restaurant(
             " ".join(str(v) for v in (restaurant.amenities or [])),
         ]
     ).lower()
+
+    if vector_similarity > 0:
+        score += vector_similarity * 3.5
+        if vector_similarity >= 0.55:
+            reasons.append("Strong semantic match to your request")
+        elif vector_similarity >= 0.35:
+            reasons.append("Semantically related to your request")
 
     wanted_cuisines = [c.lower() for c in (intent.get("cuisines") or [])]
     pref_cuisines = [str(c).lower() for c in (preferences.get("cuisines") or [])]

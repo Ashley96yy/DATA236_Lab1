@@ -13,6 +13,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ExplorePage from "./pages/ExplorePage";
 import LoginPage from "./pages/LoginPage";
 import OwnerDashboardPage from "./pages/OwnerDashboardPage";
+import OwnerAddRestaurantPage from "./pages/OwnerAddRestaurantPage";
 import OwnerLoginPage from "./pages/OwnerLoginPage";
 import OwnerProfilePage from "./pages/OwnerProfilePage";
 import OwnerRestaurantEditPage from "./pages/OwnerRestaurantEditPage";
@@ -97,6 +98,10 @@ export default function App() {
               <Route
                 path="/owner/restaurants"
                 element={<OwnerProtectedRoute><OwnerRestaurantsPage /></OwnerProtectedRoute>}
+              />
+              <Route
+                path="/owner/restaurants/new"
+                element={<OwnerProtectedRoute><OwnerAddRestaurantPage /></OwnerProtectedRoute>}
               />
               <Route
                 path="/owner/restaurants/:id/edit"

@@ -7,5 +7,6 @@ venv/
 node_modules/
 dist/
 backend/uploads/
+backend/vector_store/
 frontend/dist/
 frontend/.vite/

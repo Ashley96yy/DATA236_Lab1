@@ -57,6 +57,7 @@ export const ownerMgmtApi = {
   getProfile: () => ownerApi.get("/owners/me"),
   updateProfile: (data) => ownerApi.put("/owners/me", data),
   dashboard: () => ownerApi.get("/owner/dashboard"),
+  createRestaurant: (data) => ownerApi.post("/owner/restaurants", data),
   updateRestaurant: (id, data) => ownerApi.put(`/owner/restaurants/${id}`, data),
   claimRestaurant: (id) => ownerApi.post(`/owner/restaurants/${id}/claim`),
   getRestaurantReviews: (id, page = 1, limit = 10) =>

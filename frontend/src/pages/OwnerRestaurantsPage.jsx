@@ -33,13 +33,22 @@ export default function OwnerRestaurantsPage() {
     <div className="owner-page">
       <div className="owner-page-header">
         <h1 className="owner-page-title">My Restaurants</h1>
-        <button
-          type="button"
-          className="btn-owner-nav"
-          onClick={() => navigate("/owner/dashboard")}
-        >
-          ← Dashboard
-        </button>
+        <div className="owner-page-header-actions">
+          <button
+            type="button"
+            className="btn-owner-nav"
+            onClick={() => navigate("/owner/restaurants/new")}
+          >
+            + Post Restaurant
+          </button>
+          <button
+            type="button"
+            className="btn-owner-nav"
+            onClick={() => navigate("/owner/dashboard")}
+          >
+            ← Dashboard
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert--error">{error}</div>}
@@ -48,7 +57,7 @@ export default function OwnerRestaurantsPage() {
         <div className="owner-empty">
           <p>No claimed restaurants yet.</p>
           <p className="muted">
-            You can claim an existing restaurant from its detail page.
+            You can claim an existing restaurant from its detail page or post a new one.
           </p>
         </div>
       )}

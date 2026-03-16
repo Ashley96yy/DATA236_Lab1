@@ -37,6 +37,7 @@ export default function TopNav() {
           {isOwnerAuthenticated && <span className="nav-divider">|</span>}
           {isOwnerAuthenticated && <Link to="/owner/dashboard">Owner Dashboard</Link>}
           {isOwnerAuthenticated && <Link to="/owner/restaurants">My Restaurants</Link>}
+          {isOwnerAuthenticated && <Link to="/owner/restaurants/new">Post Restaurant</Link>}
           {isOwnerAuthenticated && <Link to="/owner/profile">Owner Profile</Link>}
 
           {/* Guest links */}

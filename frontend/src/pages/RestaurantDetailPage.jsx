@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import FavoriteButton from "../components/FavoriteButton";
-import api, { extractApiError } from "../services/api";
+import { useOwnerAuth } from "../contexts/OwnerAuthContext";
 import { useAuth } from "../contexts/AuthContext";
+import api, { extractApiError, ownerApi, ownerMgmtApi } from "../services/api";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -38,6 +39,7 @@ export default function RestaurantDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
+  const { isOwnerAuthenticated, owner } = useOwnerAuth();
   const photoInputRef = useRef(null);
 
   const [restaurant, setRestaurant] = useState(null);
@@ -65,6 +67,9 @@ export default function RestaurantDetailPage() {
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [editingReview, setEditingReview] = useState(null); // { id, rating, comment }
   const [hoverRating, setHoverRating] = useState(0);
+  const [claimSubmitting, setClaimSubmitting] = useState(false);
+  const [claimError, setClaimError] = useState("");
+  const [claimSuccess, setClaimSuccess] = useState("");
 
   useEffect(() => {
     loadRestaurant();
@@ -105,11 +110,13 @@ export default function RestaurantDetailPage() {
   }
 
   // ── Photo helpers ─────────────────────────────────────────────────────────
-  const isOwner = isAuthenticated && restaurant &&
+  const isCreatorUser = isAuthenticated && restaurant &&
     restaurant.created_by_user_id === user?.id;
+  const isClaimedOwner = isOwnerAuthenticated && restaurant &&
+    restaurant.claimed_by_owner_id === owner?.id;
 
   const existingPhotoCount = restaurant?.photos?.length ?? 0;
-  const canUploadMore = isOwner && existingPhotoCount < 5;
+  const canUploadMore = (isCreatorUser || isClaimedOwner) && existingPhotoCount < 5;
 
   function handlePhotoSelect(e) {
     const files = Array.from(e.target.files || []);
@@ -140,9 +147,10 @@ export default function RestaurantDetailPage() {
 
     const formData = new FormData();
     photoFiles.forEach((f) => formData.append("files", f));
+    const uploadClient = isClaimedOwner ? ownerApi : api;
 
     try {
-      await api.post(`/restaurants/${restaurant.id}/photos`, formData, {
+      await uploadClient.post(`/restaurants/${restaurant.id}/photos`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setPhotoSuccess(`${photoFiles.length} photo(s) uploaded!`);
@@ -154,6 +162,22 @@ export default function RestaurantDetailPage() {
       setPhotoError(extractApiError(err, "Photo upload failed."));
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleClaimRestaurant() {
+    if (!restaurant || claimSubmitting) return;
+    setClaimError("");
+    setClaimSuccess("");
+    setClaimSubmitting(true);
+    try {
+      await ownerMgmtApi.claimRestaurant(restaurant.id);
+      setClaimSuccess("Restaurant claimed successfully.");
+      await loadRestaurant();
+    } catch (err) {
+      setClaimError(extractApiError(err, "Could not claim restaurant."));
+    } finally {
+      setClaimSubmitting(false);
     }
   }
 
@@ -498,6 +522,39 @@ export default function RestaurantDetailPage() {
         <aside className="detail-sidebar">
           <div className="detail-info-card">
             <h3 className="detail-info-heading">Details</h3>
+
+            {isOwnerAuthenticated && (
+              <div className="owner-claim-panel">
+                {claimError && <div className="alert alert--error">{claimError}</div>}
+                {claimSuccess && <div className="alert alert--success">{claimSuccess}</div>}
+
+                {!r.claimed_by_owner_id && (
+                  <>
+                    <p className="muted">Own this restaurant? Claim it to manage details and photos.</p>
+                    <button
+                      type="button"
+                      className="btn-primary owner-claim-btn"
+                      onClick={handleClaimRestaurant}
+                      disabled={claimSubmitting}
+                    >
+                      {claimSubmitting ? "Claiming..." : "Claim This Restaurant"}
+                    </button>
+                  </>
+                )}
+
+                {r.claimed_by_owner_id && isClaimedOwner && (
+                  <div className="owner-claim-status owner-claim-status--success">
+                    You have already claimed this restaurant.
+                  </div>
+                )}
+
+                {r.claimed_by_owner_id && !isClaimedOwner && (
+                  <div className="owner-claim-status">
+                    This restaurant has already been claimed by another owner.
+                  </div>
+                )}
+              </div>
+            )}
 
             <InfoRow icon="📍" label="Address" value={address} />
             <InfoRow icon="📞" label="Phone" value={r.phone} />

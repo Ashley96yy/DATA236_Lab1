@@ -30,8 +30,14 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-3-5-haiku-latest"
+    embedding_provider: str = "openai"
+    vector_db_dir_name: str = "vector_store"
+    vector_collection_name: str = "restaurants"
+    ai_retrieval_top_k: int = 8
+    ai_llm_intent_extraction_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -54,6 +60,10 @@ class Settings(BaseSettings):
     @property
     def uploads_dir(self) -> Path:
         return BASE_DIR / self.uploads_dir_name
+
+    @property
+    def vector_db_dir(self) -> Path:
+        return BASE_DIR / self.vector_db_dir_name
 
 
 @lru_cache

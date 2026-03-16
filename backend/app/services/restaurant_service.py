@@ -207,7 +207,27 @@ def search_restaurants(
     keywords is matched against name, description, and the amenities JSON
     column (cast to string for a LIKE search so "wifi" matches ["WiFi",...]).
     """
-    stmt = select(Restaurant).options(selectinload(Restaurant.photos))
+    ratings_subquery = (
+        select(
+            Review.restaurant_id.label("restaurant_id"),
+            func.avg(Review.rating).label("avg_rating"),
+            func.count(Review.id).label("review_count"),
+        )
+        .group_by(Review.restaurant_id)
+        .subquery()
+    )
+    average_rating_col = func.coalesce(ratings_subquery.c.avg_rating, 0.0)
+    review_count_col = func.coalesce(ratings_subquery.c.review_count, 0)
+
+    stmt = (
+        select(
+            Restaurant,
+            average_rating_col.label("avg_rating"),
+            review_count_col.label("review_count"),
+        )
+        .outerjoin(ratings_subquery, ratings_subquery.c.restaurant_id == Restaurant.id)
+        .options(selectinload(Restaurant.photos))
+    )
 
     if name:
         stmt = stmt.where(Restaurant.name.ilike(f"%{name}%"))
@@ -227,24 +247,36 @@ def search_restaurants(
             )
         )
 
-    # Sorting — Phase 4 will replace with real AVG(rating) subquery
-    if sort in ("name", "rating", "review_count"):
+    if sort == "rating":
+        stmt = stmt.order_by(
+            average_rating_col.desc(),
+            review_count_col.desc(),
+            Restaurant.name.asc(),
+        )
+    elif sort == "review_count":
+        stmt = stmt.order_by(
+            review_count_col.desc(),
+            average_rating_col.desc(),
+            Restaurant.name.asc(),
+        )
+    else:
         stmt = stmt.order_by(Restaurant.name.asc())
 
     # Count total before applying pagination
-    count_stmt = select(func.count()).select_from(stmt.subquery())
+    count_stmt = select(func.count()).select_from(stmt.order_by(None).subquery())
     total: int = db.execute(count_stmt).scalar_one()
 
     stmt = stmt.offset((page - 1) * limit).limit(limit)
-    restaurants = db.execute(stmt).scalars().all()
-
-    rids = [r.id for r in restaurants]
-    ratings = _fetch_ratings(db, rids)
+    rows = db.execute(stmt).all()
 
     return RestaurantSearchResponse(
         items=[
-            _orm_to_card(r, *ratings.get(r.id, (0.0, 0)))
-            for r in restaurants
+            _orm_to_card(
+                row.Restaurant,
+                round(float(row.avg_rating or 0.0), 2),
+                int(row.review_count or 0),
+            )
+            for row in rows
         ],
         total=total,
         page=page,
