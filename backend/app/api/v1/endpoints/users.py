@@ -27,6 +27,36 @@ allowed_avatar_mime_types = {"image/jpeg", "image/png", "image/webp"}
 max_avatar_size_bytes = 5 * 1024 * 1024
 
 
+def _normalize_gender_for_response(gender: str | None) -> str | None:
+    if gender is None:
+        return None
+    normalized = gender.strip().lower()
+    mapping = {
+        "male": "male",
+        "female": "female",
+        "other": "other",
+        "non_binary": "non_binary",
+        "non-binary": "non_binary",
+        "prefer_not_to_say": "prefer_not_to_say",
+        "prefer-not-to-say": "prefer_not_to_say",
+    }
+    return mapping.get(normalized)
+
+
+def _normalize_gender_for_storage(gender: str | None) -> str | None:
+    if gender is None:
+        return None
+    normalized = gender.strip().lower()
+    mapping = {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "non_binary": "Other",
+        "prefer_not_to_say": "Other",
+    }
+    return mapping.get(normalized, gender)
+
+
 def _serialize_languages(languages: list[str] | None) -> str | None:
     if not languages:
         return None
@@ -51,7 +81,7 @@ def _to_profile_response(user: User) -> UserProfileResponse:
         state=user.state,
         country=user.country,
         languages=_serialize_languages(user.languages),
-        gender=user.gender,
+        gender=_normalize_gender_for_response(user.gender),
         avatar_url=user.avatar_url,
     )
 
@@ -91,6 +121,8 @@ def update_me(
 
     if "languages" in updates:
         current_user.languages = _parse_languages(updates.pop("languages"))
+    if "gender" in updates:
+        current_user.gender = _normalize_gender_for_storage(updates.pop("gender"))
 
     for field, value in updates.items():
         setattr(current_user, field, value)

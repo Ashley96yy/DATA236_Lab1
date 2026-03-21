@@ -20,6 +20,11 @@ class Restaurant(Base):
     cuisine_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Legacy columns kept for seed-data compatibility.
+    legacy_address: Mapped[Optional[str]] = mapped_column("address", String(255), nullable=True)
+    legacy_contact_info: Mapped[Optional[str]] = mapped_column("contact_info", String(120), nullable=True)
+    legacy_hours: Mapped[Optional[str]] = mapped_column("hours", String(120), nullable=True)
+
     # Address
     street: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     city: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -70,5 +75,5 @@ class Restaurant(Base):
     # reviews relationship added in Phase 4 once the Review model is defined
 
 
-# Legacy columns (address, contact_info, hours) remain in the DB for seed data
-# compatibility but are not mapped here and not used by the API.
+# Legacy columns remain in the DB for seed-data compatibility. The application
+# still writes them for backward compatibility with older schema constraints.

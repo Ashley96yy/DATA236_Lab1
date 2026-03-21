@@ -38,6 +38,7 @@ from app.services.restaurant_service import (
     _fetch_ratings,
     _orm_to_card,
     _orm_to_response,
+    _sync_legacy_restaurant_fields,
 )
 
 
@@ -95,6 +96,7 @@ def create_owner_restaurant(
         amenities=data.amenities,
         claimed_by_owner_id=owner_id,
     )
+    _sync_legacy_restaurant_fields(restaurant)
     db.add(restaurant)
     db.commit()
     db.refresh(restaurant)
@@ -131,6 +133,7 @@ def update_owner_restaurant(
     for field, value in updates.items():
         setattr(restaurant, field, value)
 
+    _sync_legacy_restaurant_fields(restaurant)
     db.add(restaurant)
     db.commit()
     db.refresh(restaurant)

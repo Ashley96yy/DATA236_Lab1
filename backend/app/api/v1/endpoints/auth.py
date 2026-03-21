@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -87,6 +88,18 @@ def login_user(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginRes
     return _login_user(payload, db)
 
 
+@router.post("/user/token", response_model=LoginResponse, include_in_schema=False)
+def login_user_oauth_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    payload = LoginRequest(
+        email=form_data.username,
+        password=form_data.password,
+    )
+    return _login_user(payload, db)
+
+
 @router.post("/owner/signup", response_model=AuthOwnerResponse, status_code=status.HTTP_201_CREATED)
 def signup_owner(payload: OwnerSignupRequest, db: Session = Depends(get_db)) -> AuthOwnerResponse:
     email = payload.email.strip().lower()
@@ -132,6 +145,18 @@ def login_owner(payload: LoginRequest, db: Session = Depends(get_db)) -> OwnerLo
         token_type="bearer",
         owner=AuthOwnerResponse.model_validate(owner),
     )
+
+
+@router.post("/owner/token", response_model=OwnerLoginResponse, include_in_schema=False)
+def login_owner_oauth_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db),
+) -> OwnerLoginResponse:
+    payload = LoginRequest(
+        email=form_data.username,
+        password=form_data.password,
+    )
+    return login_owner(payload, db)
 
 
 @router.get("/me", response_model=AuthUserResponse)

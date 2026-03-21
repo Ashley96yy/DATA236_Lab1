@@ -1502,6 +1502,195 @@ button:disabled {
   border: 1px solid #86efac;
 }
 
+@media (max-width: 700px) {
+  .top-nav-inner {
+    align-items: flex-start;
+    gap: 10px 12px;
+  }
+
+  .top-links {
+    order: 3;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding-top: 6px;
+  }
+
+  .top-links a {
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  .nav-user-group {
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  .nav-user {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .page-wrap {
+    padding: 22px 14px 36px;
+  }
+
+  .dashboard-page {
+    padding: 20px 0 36px;
+  }
+
+  .dashboard-title {
+    margin-bottom: 18px;
+    font-size: 1.65rem;
+  }
+
+  .dashboard-tabs {
+    gap: 6px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .tab-btn {
+    flex: 0 0 auto;
+    padding: 12px 14px;
+    font-size: 0.92rem;
+  }
+
+  .restaurant-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .rc-photo {
+    height: 190px;
+  }
+
+  .rc-body {
+    padding: 15px 15px 16px;
+  }
+
+  .dashboard-count {
+    margin-bottom: 14px;
+  }
+
+  .history-section {
+    margin-bottom: 30px;
+  }
+
+  .history-review-card {
+    padding: 14px;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .btn-page {
+    min-width: 132px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav-inner {
+    padding: 10px 12px;
+  }
+
+  .project-logo.compact .project-logo-image {
+    height: 38px;
+  }
+
+  .top-links {
+    gap: 8px 12px;
+  }
+
+  .top-links a {
+    font-size: 0.9rem;
+  }
+
+  .nav-divider {
+    display: none;
+  }
+
+  .nav-user-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-user {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .nav-user-name {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-logout {
+    padding: 7px 10px;
+  }
+
+  .page-wrap {
+    padding: 18px 12px 30px;
+  }
+
+  .dashboard-title {
+    font-size: 1.45rem;
+  }
+
+  .dashboard-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+  }
+
+  .tab-btn {
+    justify-content: center;
+    padding: 12px 10px;
+  }
+
+  .tab-count {
+    padding: 1px 7px;
+  }
+
+  .dashboard-empty {
+    padding: 34px 16px;
+  }
+
+  .rc-photo {
+    height: 168px;
+  }
+
+  .rc-name {
+    font-size: 1rem;
+  }
+
+  .rc-description,
+  .history-review-comment {
+    font-size: 0.85rem;
+  }
+
+  .history-review-top {
+    gap: 8px;
+  }
+
+  .history-review-date {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .btn-page {
+    width: 100%;
+  }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .owner-stats-row { flex-direction: column; }

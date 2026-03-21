@@ -11,8 +11,14 @@ from app.db.session import get_db
 from app.models.owner import Owner
 from app.models.user import User
 
-oauth2_scheme_user = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/user/login")
-oauth2_scheme_owner = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/owner/login")
+oauth2_scheme_user = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/user/token",
+    scheme_name="UserAuth",
+)
+oauth2_scheme_owner = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/owner/token",
+    scheme_name="OwnerAuth",
+)
 
 
 def get_current_user(

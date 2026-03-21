@@ -51,6 +51,55 @@ _MAX_PHOTOS_TOTAL = 5
 # Private helpers
 # ---------------------------------------------------------------------------
 
+def _build_legacy_address(
+    *,
+    street: Optional[str],
+    city: Optional[str],
+    state: Optional[str],
+    zip_code: Optional[str],
+    country: Optional[str],
+) -> str:
+    left = ", ".join(part.strip() for part in (street, city) if part and part.strip())
+    right = " ".join(part.strip() for part in (state, zip_code) if part and part.strip())
+    country_part = country.strip() if country and country.strip() else ""
+    composed = ", ".join(part for part in (left, right, country_part) if part)
+    return composed or "Address unavailable"
+
+
+def _build_legacy_contact_info(
+    *,
+    phone: Optional[str],
+    email: Optional[str],
+) -> Optional[str]:
+    parts = [part.strip() for part in (phone, email) if part and part.strip()]
+    return " | ".join(parts) if parts else None
+
+
+def _build_legacy_hours(hours_json: Optional[dict]) -> Optional[str]:
+    if not isinstance(hours_json, dict) or not hours_json:
+        return None
+    parts = [
+        f"{str(day).strip()}: {str(hours).strip()}"
+        for day, hours in hours_json.items()
+        if str(day).strip() and str(hours).strip()
+    ]
+    return " | ".join(parts[:3]) if parts else None
+
+
+def _sync_legacy_restaurant_fields(restaurant: Restaurant) -> None:
+    restaurant.legacy_address = _build_legacy_address(
+        street=restaurant.street,
+        city=restaurant.city,
+        state=restaurant.state,
+        zip_code=restaurant.zip_code,
+        country=restaurant.country,
+    )
+    restaurant.legacy_contact_info = _build_legacy_contact_info(
+        phone=restaurant.phone,
+        email=restaurant.email,
+    )
+    restaurant.legacy_hours = _build_legacy_hours(restaurant.hours_json)
+
 def _build_photo_url(base_url: str, filename: str) -> str:
     return f"{base_url.rstrip('/')}/uploads/restaurant_photos/{filename}"
 
@@ -162,6 +211,7 @@ def create_restaurant(
         amenities=data.amenities,
         created_by_user_id=created_by_user_id,
     )
+    _sync_legacy_restaurant_fields(restaurant)
     db.add(restaurant)
     db.commit()
     db.refresh(restaurant)
