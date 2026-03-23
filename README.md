@@ -286,7 +286,6 @@ npm run dev -- --host 127.0.0.1 --port 5173
 - `POST /api/v1/ai-assistant/chat`
 
 ## Notes
-
 - Do not commit `backend/.env` or any real API keys.
 - `backend/vector_store/` is generated at runtime and ignored by git.
 - If OpenAI quota is unavailable, use local embedding mode.
