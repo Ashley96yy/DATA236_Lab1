@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.shared.config.settings import get_settings
+from shared.config.settings import get_settings
 
 
 def get_kafka_bootstrap_servers() -> str:
