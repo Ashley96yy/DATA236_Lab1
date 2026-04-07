@@ -32,3 +32,10 @@ class ReviewListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class ReviewEventAckResponse(BaseModel):
+    status: str
+    topic: str
+    review_id: int
+    event_id: str

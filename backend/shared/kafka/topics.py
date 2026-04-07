@@ -1,0 +1,13 @@
+REVIEW_CREATED_TOPIC = "review.created"
+REVIEW_UPDATED_TOPIC = "review.updated"
+REVIEW_DELETED_TOPIC = "review.deleted"
+RESTAURANT_CREATED_TOPIC = "restaurant.created"
+RESTAURANT_UPDATED_TOPIC = "restaurant.updated"
+RESTAURANT_CLAIMED_TOPIC = "restaurant.claimed"
+
+
+REVIEW_TOPICS = (
+    REVIEW_CREATED_TOPIC,
+    REVIEW_UPDATED_TOPIC,
+    REVIEW_DELETED_TOPIC,
+)
