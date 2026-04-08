@@ -43,6 +43,21 @@ def update_owner_profile(owner_id: int, payload: dict) -> dict:
     return get_owner_by_id(owner_id)
 
 
+def get_restaurant_by_id(restaurant_id: int) -> dict | None:
+    return _db()[RESTAURANTS].find_one({"_id": int(restaurant_id)})
+
+
+def claim_restaurant(owner_id: int, restaurant_id: int) -> dict | None:
+    existing = get_restaurant_by_id(restaurant_id)
+    if existing is None:
+        return None
+    _db()[RESTAURANTS].update_one(
+        {"_id": int(restaurant_id)},
+        {"$set": {"claimed_by_owner_id": int(owner_id)}},
+    )
+    return get_restaurant_by_id(restaurant_id)
+
+
 def get_owner_dashboard(owner_id: int) -> dict:
     db = _db()
     restaurants = list(db[RESTAURANTS].find({"claimed_by_owner_id": int(owner_id)}))

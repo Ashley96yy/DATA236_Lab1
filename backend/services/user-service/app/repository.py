@@ -74,3 +74,89 @@ def update_preferences(user_id: int, payload: dict) -> dict:
     }
     _db()[USER_PREFERENCES].replace_one({"user_id": int(user_id)}, merged, upsert=True)
     return merged
+
+
+# --- Favorites ---
+
+def get_favorites_page(user_id: int, page: int, limit: int) -> dict:
+    from shared.db.collections import FAVORITES, RESTAURANTS
+    db = _db()
+    total = db[FAVORITES].count_documents({"user_id": int(user_id)})
+    cursor = db[FAVORITES].find({"user_id": int(user_id)}).skip((page - 1) * limit).limit(limit)
+    items = []
+    for fav in cursor:
+        restaurant = db[RESTAURANTS].find_one({"_id": int(fav["restaurant_id"])})
+        if restaurant:
+            address = restaurant.get("address", {})
+            reviews = list(db["reviews"].find({"restaurant_id": int(restaurant["_id"])}))
+            review_count = len(reviews)
+            avg = round(sum(r.get("rating", 0) for r in reviews) / review_count, 2) if review_count else 0.0
+            items.append({
+                "restaurant_id": int(restaurant["_id"]),
+                "name": restaurant["name"],
+                "cuisine_type": restaurant.get("cuisine_type"),
+                "city": address.get("city"),
+                "state": address.get("state"),
+                "pricing_tier": restaurant.get("pricing_tier"),
+                "average_rating": avg,
+                "review_count": review_count,
+            })
+    return {"items": items, "total": total, "page": page, "limit": limit}
+
+
+def add_favorite(user_id: int, restaurant_id: int) -> None:
+    from shared.db.collections import FAVORITES
+    doc = {"user_id": int(user_id), "restaurant_id": int(restaurant_id)}
+    _db()[FAVORITES].replace_one(doc, doc, upsert=True)
+
+
+def remove_favorite(user_id: int, restaurant_id: int) -> bool:
+    from shared.db.collections import FAVORITES
+    result = _db()[FAVORITES].delete_one({"user_id": int(user_id), "restaurant_id": int(restaurant_id)})
+    return result.deleted_count > 0
+
+
+def get_favorite_by_user_and_restaurant(user_id: int, restaurant_id: int) -> dict | None:
+    from shared.db.collections import FAVORITES
+    return _db()[FAVORITES].find_one({"user_id": int(user_id), "restaurant_id": int(restaurant_id)})
+
+
+# --- History ---
+
+def get_user_history(user_id: int) -> dict:
+    from shared.db.collections import FAVORITES, RESTAURANTS, REVIEWS
+    db = _db()
+
+    raw_reviews = list(db[REVIEWS].find({"user_id": int(user_id)}).sort("created_at", -1))
+    reviews_written = []
+    for review in raw_reviews:
+        restaurant = db[RESTAURANTS].find_one({"_id": int(review["restaurant_id"])})
+        reviews_written.append({
+            "review_id": int(review["_id"]),
+            "restaurant_id": int(review["restaurant_id"]),
+            "restaurant_name": restaurant["name"] if restaurant else "Unknown",
+            "rating": int(review["rating"]),
+            "comment": review.get("comment"),
+        })
+
+    fav_docs = list(db[FAVORITES].find({"user_id": int(user_id)}))
+    restaurants_added = []
+    for fav in fav_docs:
+        restaurant = db[RESTAURANTS].find_one({"_id": int(fav["restaurant_id"])})
+        if restaurant:
+            address = restaurant.get("address", {})
+            all_reviews = list(db[REVIEWS].find({"restaurant_id": int(restaurant["_id"])}))
+            review_count = len(all_reviews)
+            avg = round(sum(r.get("rating", 0) for r in all_reviews) / review_count, 2) if review_count else 0.0
+            restaurants_added.append({
+                "restaurant_id": int(restaurant["_id"]),
+                "name": restaurant["name"],
+                "cuisine_type": restaurant.get("cuisine_type"),
+                "city": address.get("city"),
+                "state": address.get("state"),
+                "pricing_tier": restaurant.get("pricing_tier"),
+                "average_rating": avg,
+                "review_count": review_count,
+            })
+
+    return {"reviews_written": reviews_written, "restaurants_added": restaurants_added}

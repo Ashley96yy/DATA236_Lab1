@@ -9,15 +9,13 @@ PriceRangeType = Literal["$", "$$", "$$$", "$$$$"]
 SortPreferenceType = Literal["rating", "distance", "popularity", "price"]
 
 
+from shared.schemas import LoginRequest  # noqa: F401 — re-exported for service use
+
+
 class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=5, max_length=255)
     password: str = Field(min_length=8, max_length=72)
-
-
-class LoginRequest(BaseModel):
-    email: str = Field(min_length=5, max_length=255)
-    password: str = Field(min_length=1, max_length=72)
 
 
 class UserResponse(BaseModel):
@@ -58,3 +56,34 @@ class UserPreferencesUpdateRequest(BaseModel):
     dietary_needs: list[str] | None = None
     ambiance: list[str] | None = None
     sort_preference: SortPreferenceType | None = None
+
+
+class FavoriteEntry(BaseModel):
+    restaurant_id: int
+    name: str
+    cuisine_type: str | None = None
+    city: str | None = None
+    state: str | None = None
+    pricing_tier: str | None = None
+    average_rating: float = 0.0
+    review_count: int = 0
+
+
+class FavoritesListResponse(BaseModel):
+    items: list[FavoriteEntry]
+    total: int
+    page: int
+    limit: int
+
+
+class HistoryReviewEntry(BaseModel):
+    review_id: int
+    restaurant_id: int
+    restaurant_name: str
+    rating: int
+    comment: str | None = None
+
+
+class UserHistoryResponse(BaseModel):
+    reviews_written: list[HistoryReviewEntry] = Field(default_factory=list)
+    restaurants_added: list[FavoriteEntry] = Field(default_factory=list)

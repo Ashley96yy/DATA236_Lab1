@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status  # HTTPException removed — use shared.utils
 
 from app.deps import get_current_user
 from app.repository import (
@@ -8,6 +8,8 @@ from app.repository import (
     get_restaurant_by_id,
     get_restaurant_photos,
     get_restaurant_reviews,
+    get_user_name,
+    list_reviews_paginated,
     search_restaurants,
 )
 from app.schemas import (
@@ -16,7 +18,11 @@ from app.schemas import (
     RestaurantPhotoResponse,
     RestaurantResponse,
     RestaurantSearchResponse,
+    ReviewListResponse,
+    ReviewResponse,
 )
+
+from shared.utils import not_found
 
 router = APIRouter()
 
@@ -116,5 +122,46 @@ def search(
 def read_detail(restaurant_id: int) -> RestaurantResponse:
     restaurant = get_restaurant_by_id(restaurant_id)
     if restaurant is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found.")
+        raise not_found("Restaurant not found.")
     return _serialize_restaurant(restaurant)
+
+
+@router.get("/restaurants/{restaurant_id}/reviews", response_model=ReviewListResponse)
+def read_reviews(
+    restaurant_id: int,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> ReviewListResponse:
+    if get_restaurant_by_id(restaurant_id) is None:
+        raise not_found("Restaurant not found.")
+    result = list_reviews_paginated(restaurant_id, page=page, limit=limit)
+    items = []
+    for review in result["items"]:
+        items.append(ReviewResponse(
+            id=int(review["_id"]),
+            restaurant_id=int(review["restaurant_id"]),
+            user_id=int(review["user_id"]),
+            user_name=get_user_name(int(review["user_id"])),
+            rating=int(review["rating"]),
+            comment=review.get("comment"),
+            status=review.get("status", "processed"),
+            created_at=review["created_at"],
+            updated_at=review["updated_at"],
+        ))
+    return ReviewListResponse(items=items, total=result["total"], page=result["page"], limit=result["limit"])
+
+
+@router.get("/restaurants/{restaurant_id}/photos", response_model=list[RestaurantPhotoResponse])
+def read_photos(restaurant_id: int) -> list[RestaurantPhotoResponse]:
+    if get_restaurant_by_id(restaurant_id) is None:
+        raise not_found("Restaurant not found.")
+    photos = get_restaurant_photos(restaurant_id)
+    return [
+        RestaurantPhotoResponse(
+            id=int(photo["_id"]),
+            photo_url=photo["photo_url"],
+            uploaded_by_user_id=photo.get("uploaded_by_user_id"),
+            uploaded_by_owner_id=photo.get("uploaded_by_owner_id"),
+        )
+        for photo in photos
+    ]

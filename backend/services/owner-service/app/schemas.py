@@ -3,16 +3,14 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+from shared.schemas import LoginRequest  # noqa: F401 — re-exported for service use
+
+
 class OwnerSignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=5, max_length=255)
     password: str = Field(min_length=8, max_length=72)
     restaurant_location: str = Field(min_length=1, max_length=255)
-
-
-class LoginRequest(BaseModel):
-    email: str = Field(min_length=5, max_length=255)
-    password: str = Field(min_length=1, max_length=72)
 
 
 class OwnerResponse(BaseModel):
@@ -50,3 +48,9 @@ class OwnerDashboardResponse(BaseModel):
     avg_rating: float
     rating_distribution: dict[int, int]
     claimed_restaurants: list[ClaimedRestaurantCard] = Field(default_factory=list)
+
+
+class ClaimRestaurantResponse(BaseModel):
+    restaurant_id: int
+    claimed_by_owner_id: int
+    status: str = "claimed"

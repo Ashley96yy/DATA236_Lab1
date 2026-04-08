@@ -55,6 +55,24 @@ def get_restaurant_reviews(restaurant_id: int) -> list[dict]:
     return list(_db()[REVIEWS].find({"restaurant_id": int(restaurant_id)}))
 
 
+def list_reviews_paginated(restaurant_id: int, page: int, limit: int) -> dict:
+    cursor = (
+        _db()[REVIEWS]
+        .find({"restaurant_id": int(restaurant_id)})
+        .sort("created_at", -1)
+        .skip((page - 1) * limit)
+        .limit(limit)
+    )
+    items = list(cursor)
+    total = _db()[REVIEWS].count_documents({"restaurant_id": int(restaurant_id)})
+    return {"items": items, "total": total, "page": page, "limit": limit}
+
+
+def get_user_name(user_id: int) -> str:
+    user = _db()[USERS].find_one({"_id": int(user_id)})
+    return user["name"] if user else "Unknown User"
+
+
 def search_restaurants(
     *,
     name: str | None,

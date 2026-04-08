@@ -75,3 +75,27 @@ class RestaurantSearchResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+# --- Reviews (read) ---
+
+from datetime import datetime  # noqa: E402
+
+
+class ReviewResponse(BaseModel):
+    id: int
+    restaurant_id: int
+    user_id: int
+    user_name: str
+    rating: int
+    comment: str | None = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ReviewListResponse(BaseModel):
+    items: list[ReviewResponse]
+    total: int
+    page: int
+    limit: int
