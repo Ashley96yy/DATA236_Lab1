@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import api, { extractApiError, ownerApi, ownerMgmtApi } from "../services/api";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function StarRating({ rating }) {
   const full = Math.floor(rating);
@@ -81,8 +82,10 @@ export default function RestaurantDetailPage() {
       const resp = await api.get(`/restaurants/${id}/reviews?limit=50`);
       setReviews(resp.data.items || []);
       setReviewsTotal(resp.data.total || 0);
+      return resp.data.items || [];
     } catch {
       // non-blocking
+      return [];
     } finally {
       setReviewsLoading(false);
     }
@@ -98,6 +101,7 @@ export default function RestaurantDetailPage() {
     try {
       const resp = await api.get(`/restaurants/${id}`);
       setRestaurant(resp.data);
+      return resp.data;
     } catch (err) {
       if (err?.response?.status === 404) {
         setError("Restaurant not found.");
@@ -108,6 +112,34 @@ export default function RestaurantDetailPage() {
       setLoading(false);
     }
   }
+
+  const syncReviewMutation = useCallback(async (predicate, attempts = 8, delayMs = 400) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        const [reviewResp, restaurantResp] = await Promise.all([
+          api.get(`/restaurants/${id}/reviews?limit=50`),
+          api.get(`/restaurants/${id}`),
+        ]);
+        const nextReviews = reviewResp.data.items || [];
+        const nextTotal = reviewResp.data.total || 0;
+        const nextRestaurant = restaurantResp.data;
+
+        setReviews(nextReviews);
+        setReviewsTotal(nextTotal);
+        setRestaurant(nextRestaurant);
+
+        if (predicate(nextReviews, nextRestaurant)) {
+          return true;
+        }
+      } catch {
+        // ignore and retry
+      }
+      await wait(delayMs);
+    }
+    await loadReviews();
+    await loadRestaurant();
+    return false;
+  }, [id, loadReviews]);
 
   // ── Photo helpers ─────────────────────────────────────────────────────────
   const isCreatorUser = isAuthenticated && restaurant &&
@@ -411,23 +443,45 @@ export default function RestaurantDetailPage() {
                       setReviewSubmitting(true);
                       try {
                         if (editingReview) {
+                          const expectedReviewId = editingReview.id;
+                          const expectedRating = editingReview.rating;
+                          const expectedComment = editingReview.comment || null;
                           await api.put(`/reviews/${editingReview.id}`, {
                             rating: editingReview.rating,
                             comment: editingReview.comment || null,
                           });
-                          setReviewSuccess("Review updated!");
+                          setReviewSuccess("Review update queued. Syncing...");
                           setEditingReview(null);
+                          await syncReviewMutation(
+                            (items) => items.some(
+                              (item) =>
+                                item.id === expectedReviewId &&
+                                item.rating === expectedRating &&
+                                (item.comment || null) === expectedComment,
+                            ),
+                          );
+                          setReviewSuccess("Review updated!");
                         } else {
+                          const expectedRating = reviewRating;
+                          const expectedComment = reviewComment || null;
+                          const expectedUserId = user?.id;
                           await api.post(`/restaurants/${id}/reviews`, {
                             rating: reviewRating,
                             comment: reviewComment || null,
                           });
-                          setReviewSuccess("Review submitted!");
+                          setReviewSuccess("Review submitted and syncing...");
                           setReviewRating(0);
                           setReviewComment("");
+                          await syncReviewMutation(
+                            (items) => items.some(
+                              (item) =>
+                                item.user_id === expectedUserId &&
+                                item.rating === expectedRating &&
+                                (item.comment || null) === expectedComment,
+                            ),
+                          );
+                          setReviewSuccess("Review submitted!");
                         }
-                        await loadReviews();
-                        await loadRestaurant();
                       } catch (err) {
                         setReviewError(extractApiError(err, "Could not submit review."));
                       } finally {
@@ -479,7 +533,7 @@ export default function RestaurantDetailPage() {
                     {rv.comment && <p className="review-comment">{rv.comment}</p>}
 
                     {/* Edit / Delete — only for own reviews */}
-                    {isAuthenticated && user?.name === rv.user_name && (
+                    {isAuthenticated && user?.id === rv.user_id && (
                       <div className="review-actions">
                         <button
                           type="button"
@@ -500,8 +554,9 @@ export default function RestaurantDetailPage() {
                             if (!window.confirm("Delete this review?")) return;
                             try {
                               await api.delete(`/reviews/${rv.id}`);
-                              await loadReviews();
-                              await loadRestaurant();
+                              setReviewSuccess("Review delete queued. Syncing...");
+                              await syncReviewMutation((items) => !items.some((item) => item.id === rv.id));
+                              setReviewSuccess("Review deleted!");
                             } catch (err) {
                               setReviewError(extractApiError(err, "Could not delete review."));
                             }

@@ -29,7 +29,7 @@ def start_consumer(topics: list[str], handler: Callable[[str, dict], dict]) -> N
         group_id=group_id,
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         auto_offset_reset="earliest",
-        enable_auto_commit=True,
+        enable_auto_commit=False,
     )
 
     logger.info("Kafka consumer started listening to topics: %s", topics)
@@ -38,6 +38,13 @@ def start_consumer(topics: list[str], handler: Callable[[str, dict], dict]) -> N
             logger.info("Consumed event from %s: %s", message.topic, message.value)
             try:
                 handler(message.topic, message.value)
+                consumer.commit()
+                logger.info(
+                    "Committed Kafka offset for topic=%s partition=%s offset=%s",
+                    message.topic,
+                    message.partition,
+                    message.offset,
+                )
             except Exception as exc:
                 logger.error("Failed to process event from %s: %s", message.topic, exc)
     finally:

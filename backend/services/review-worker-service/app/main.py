@@ -14,6 +14,7 @@ from shared.kafka.consumer import start_consumer
 from shared.kafka.topics import REVIEW_CREATED_TOPIC, REVIEW_DELETED_TOPIC, REVIEW_UPDATED_TOPIC
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Lab 2 Review Worker Service")
 
