@@ -27,7 +27,7 @@ class UserResponse(BaseModel):
     city: str | None = None
     state: str | None = None
     country: str | None = None
-    languages: list[str] = Field(default_factory=list)
+    languages: str | list[str] | None = None
     gender: GenderType | None = None
     avatar_url: str | None = None
 
@@ -56,6 +56,21 @@ class UserPreferencesUpdateRequest(BaseModel):
     dietary_needs: list[str] | None = None
     ambiance: list[str] | None = None
     sort_preference: SortPreferenceType | None = None
+
+
+class UserProfileUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=30)
+    about_me: str | None = None
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, max_length=50)
+    country: str | None = Field(default=None, min_length=2, max_length=2)
+    languages: str | list[str] | None = None
+    gender: GenderType | None = None
+
+
+class AvatarUploadResponse(BaseModel):
+    avatar_url: str
 
 
 class FavoriteEntry(BaseModel):
@@ -87,3 +102,27 @@ class HistoryReviewEntry(BaseModel):
 class UserHistoryResponse(BaseModel):
     reviews_written: list[HistoryReviewEntry] = Field(default_factory=list)
     restaurants_added: list[FavoriteEntry] = Field(default_factory=list)
+
+
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class AiAssistantChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    conversation_history: list[ConversationTurn] = Field(default_factory=list)
+
+
+class AiSuggestedRestaurant(BaseModel):
+    id: int
+    name: str
+    cuisine_type: str | None = None
+    pricing_tier: str | None = None
+    average_rating: float = 0.0
+    reason: str
+
+
+class AiAssistantChatResponse(BaseModel):
+    reply: str
+    suggested_restaurants: list[AiSuggestedRestaurant] = Field(default_factory=list)

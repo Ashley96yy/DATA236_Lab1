@@ -58,4 +58,5 @@ def ensure_lab2_indexes() -> None:
         expireAfterSeconds=0,
         name=f"sessions_ttl_{settings.session_ttl_hours}h",
     )
-    db[COUNTERS].create_index([("_id", ASCENDING)], unique=True, name="counters_id_unique")
+    # MongoDB already enforces a built-in unique index on `_id`.
+    # Do not recreate it with `unique=True`, or bootstrap fails.

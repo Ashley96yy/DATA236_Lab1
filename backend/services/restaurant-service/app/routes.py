@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, status  # HTTPException removed — use shared.utils
+import base64
 
-from app.deps import get_current_user
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+
+from app.deps import get_current_actor, get_current_user
 from app.repository import (
+    add_restaurant_photos,
     create_restaurant,
     get_restaurant_by_id,
+    get_owner_by_id,
     get_restaurant_photos,
     get_restaurant_reviews,
     get_user_name,
@@ -22,7 +26,7 @@ from app.schemas import (
     ReviewResponse,
 )
 
-from shared.utils import not_found
+from shared.utils import bad_request, forbidden, not_found
 
 router = APIRouter()
 
@@ -156,6 +160,59 @@ def read_photos(restaurant_id: int) -> list[RestaurantPhotoResponse]:
     if get_restaurant_by_id(restaurant_id) is None:
         raise not_found("Restaurant not found.")
     photos = get_restaurant_photos(restaurant_id)
+    return [
+        RestaurantPhotoResponse(
+            id=int(photo["_id"]),
+            photo_url=photo["photo_url"],
+            uploaded_by_user_id=photo.get("uploaded_by_user_id"),
+            uploaded_by_owner_id=photo.get("uploaded_by_owner_id"),
+        )
+        for photo in photos
+    ]
+
+
+@router.post("/restaurants/{restaurant_id}/photos", response_model=list[RestaurantPhotoResponse], status_code=status.HTTP_201_CREATED)
+async def upload_photos(
+    restaurant_id: int,
+    files: list[UploadFile] = File(...),
+    current_actor: dict = Depends(get_current_actor),
+) -> list[RestaurantPhotoResponse]:
+    restaurant = get_restaurant_by_id(restaurant_id)
+    if restaurant is None:
+        raise not_found("Restaurant not found.")
+
+    actor_id = int(current_actor["id"])
+    if current_actor["role"] == "user":
+        if int(restaurant.get("created_by_user_id") or 0) != actor_id:
+            raise forbidden("You can only upload photos for restaurants you created.")
+        uploaded_by_user_id = actor_id
+        uploaded_by_owner_id = None
+    else:
+        if int(restaurant.get("claimed_by_owner_id") or 0) != actor_id:
+            raise forbidden("You can only upload photos for restaurants you manage.")
+        uploaded_by_user_id = None
+        uploaded_by_owner_id = actor_id
+
+    photo_urls = []
+    for file in files:
+        raw = await file.read()
+        if not raw:
+            continue
+        content_type = file.content_type or "image/jpeg"
+        if not content_type.startswith("image/"):
+            raise bad_request("Only image uploads are supported.")
+        encoded = base64.b64encode(raw).decode("utf-8")
+        photo_urls.append(f"data:{content_type};base64,{encoded}")
+
+    if not photo_urls:
+        raise bad_request("No valid image files were uploaded.")
+
+    photos = add_restaurant_photos(
+        restaurant_id,
+        photo_urls,
+        uploaded_by_user_id=uploaded_by_user_id,
+        uploaded_by_owner_id=uploaded_by_owner_id,
+    )
     return [
         RestaurantPhotoResponse(
             id=int(photo["_id"]),

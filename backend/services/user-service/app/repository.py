@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from shared.auth.security import hash_password
-from shared.db.collections import USER_PREFERENCES, USERS
+from shared.db.collections import FAVORITES, RESTAURANTS, REVIEWS, USER_PREFERENCES, USERS
 from shared.db.counters import get_next_sequence
 from shared.db.mongo import get_mongo_database
 
@@ -16,6 +18,15 @@ def get_user_by_email(email: str) -> dict | None:
 
 def get_user_by_id(user_id: int) -> dict | None:
     return _db()[USERS].find_one({"_id": int(user_id)})
+
+
+def _normalize_languages(value: str | list[str] | None) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return [trimmed] if trimmed else []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
 def create_user(*, name: str, email: str, password: str) -> dict:
@@ -36,6 +47,34 @@ def create_user(*, name: str, email: str, password: str) -> dict:
     }
     _db()[USERS].insert_one(document)
     return document
+
+
+def update_user_profile(user_id: int, payload: dict) -> dict:
+    updates = {}
+    for field in ("name", "phone", "about_me", "city", "state", "gender"):
+        if field in payload:
+            value = payload[field]
+            updates[field] = value.strip() if isinstance(value, str) else value
+
+    if "country" in payload:
+        value = payload["country"]
+        updates["country"] = value.strip().upper() if isinstance(value, str) and value.strip() else None
+
+    if "languages" in payload:
+        updates["languages"] = _normalize_languages(payload["languages"])
+
+    if updates:
+        updates["updated_at"] = datetime.now(timezone.utc)
+        _db()[USERS].update_one({"_id": int(user_id)}, {"$set": updates})
+    return get_user_by_id(user_id)
+
+
+def update_user_avatar(user_id: int, avatar_url: str) -> dict:
+    _db()[USERS].update_one(
+        {"_id": int(user_id)},
+        {"$set": {"avatar_url": avatar_url, "updated_at": datetime.now(timezone.utc)}},
+    )
+    return get_user_by_id(user_id)
 
 
 def get_preferences(user_id: int) -> dict:
@@ -79,7 +118,6 @@ def update_preferences(user_id: int, payload: dict) -> dict:
 # --- Favorites ---
 
 def get_favorites_page(user_id: int, page: int, limit: int) -> dict:
-    from shared.db.collections import FAVORITES, RESTAURANTS
     db = _db()
     total = db[FAVORITES].count_documents({"user_id": int(user_id)})
     cursor = db[FAVORITES].find({"user_id": int(user_id)}).skip((page - 1) * limit).limit(limit)
@@ -105,26 +143,22 @@ def get_favorites_page(user_id: int, page: int, limit: int) -> dict:
 
 
 def add_favorite(user_id: int, restaurant_id: int) -> None:
-    from shared.db.collections import FAVORITES
     doc = {"user_id": int(user_id), "restaurant_id": int(restaurant_id)}
     _db()[FAVORITES].replace_one(doc, doc, upsert=True)
 
 
 def remove_favorite(user_id: int, restaurant_id: int) -> bool:
-    from shared.db.collections import FAVORITES
     result = _db()[FAVORITES].delete_one({"user_id": int(user_id), "restaurant_id": int(restaurant_id)})
     return result.deleted_count > 0
 
 
 def get_favorite_by_user_and_restaurant(user_id: int, restaurant_id: int) -> dict | None:
-    from shared.db.collections import FAVORITES
     return _db()[FAVORITES].find_one({"user_id": int(user_id), "restaurant_id": int(restaurant_id)})
 
 
 # --- History ---
 
 def get_user_history(user_id: int) -> dict:
-    from shared.db.collections import FAVORITES, RESTAURANTS, REVIEWS
     db = _db()
 
     raw_reviews = list(db[REVIEWS].find({"user_id": int(user_id)}).sort("created_at", -1))
@@ -160,3 +194,11 @@ def get_user_history(user_id: int) -> dict:
             })
 
     return {"reviews_written": reviews_written, "restaurants_added": restaurants_added}
+
+
+def list_restaurants_for_ai() -> list[dict]:
+    return list(_db()[RESTAURANTS].find({}))
+
+
+def get_reviews_for_restaurant(restaurant_id: int) -> list[dict]:
+    return list(_db()[REVIEWS].find({"restaurant_id": int(restaurant_id)}))

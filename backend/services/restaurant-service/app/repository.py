@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
-from shared.db.collections import RESTAURANTS, RESTAURANT_PHOTOS, REVIEWS, USERS
+from shared.db.collections import OWNERS, RESTAURANTS, RESTAURANT_PHOTOS, REVIEWS, USERS
 from shared.db.counters import get_next_sequence
 from shared.db.mongo import get_mongo_database
 
@@ -13,6 +14,10 @@ def _db():
 
 def get_user_by_id(user_id: int) -> dict | None:
     return _db()[USERS].find_one({"_id": int(user_id)})
+
+
+def get_owner_by_id(owner_id: int) -> dict | None:
+    return _db()[OWNERS].find_one({"_id": int(owner_id)})
 
 
 def create_restaurant(*, payload: dict, created_by_user_id: int) -> dict:
@@ -49,6 +54,30 @@ def get_restaurant_by_id(restaurant_id: int) -> dict | None:
 
 def get_restaurant_photos(restaurant_id: int) -> list[dict]:
     return list(_db()[RESTAURANT_PHOTOS].find({"restaurant_id": int(restaurant_id)}))
+
+
+def add_restaurant_photos(
+    restaurant_id: int,
+    photo_urls: list[str],
+    *,
+    uploaded_by_user_id: int | None = None,
+    uploaded_by_owner_id: int | None = None,
+) -> list[dict]:
+    db = _db()
+    created = []
+    for photo_url in photo_urls:
+        photo_id = get_next_sequence(RESTAURANT_PHOTOS)
+        document = {
+            "_id": photo_id,
+            "restaurant_id": int(restaurant_id),
+            "photo_url": photo_url,
+            "uploaded_by_user_id": uploaded_by_user_id,
+            "uploaded_by_owner_id": uploaded_by_owner_id,
+            "created_at": datetime.now(timezone.utc),
+        }
+        db[RESTAURANT_PHOTOS].insert_one(document)
+        created.append(document)
+    return created
 
 
 def get_restaurant_reviews(restaurant_id: int) -> list[dict]:

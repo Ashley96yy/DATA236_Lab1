@@ -107,6 +107,9 @@ function toPrimaryLanguage(value) {
   if (!value) {
     return "";
   }
+  if (Array.isArray(value)) {
+    return value[0]?.trim?.() || "";
+  }
   if (value.includes(",")) {
     return value.split(",")[0].trim();
   }

@@ -39,7 +39,7 @@ function restaurantToForm(r) {
     email: r.email || "",
     pricing_tier: r.pricing_tier || "",
     amenities: Array.isArray(r.amenities) ? r.amenities.join(", ") : "",
-    hours_json: r.hours_json ? JSON.stringify(r.hours_json, null, 2) : "",
+    hours_json: (r.hours_json || r.hours) ? JSON.stringify(r.hours_json || r.hours, null, 2) : "",
   };
 }
 
