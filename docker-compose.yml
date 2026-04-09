@@ -26,6 +26,32 @@ services:
       - mongo_data:/data/db
     ports:
       - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - backend
+
+  mongo-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.tools
+    container_name: mongo-init
+    restart: "no"
+    environment:
+      <<: *backend-env
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command:
+      [
+        "sh",
+        "-c",
+        "python scripts/mongo_bootstrap.py && python scripts/seed_lab2_demo_data.py",
+      ]
     networks:
       - backend
 
@@ -90,7 +116,8 @@ services:
     environment:
       <<: *backend-env
     depends_on:
-      - mongodb
+      mongo-init:
+        condition: service_completed_successfully
     networks:
       - backend
 
@@ -103,7 +130,8 @@ services:
     environment:
       <<: *backend-env
     depends_on:
-      - mongodb
+      mongo-init:
+        condition: service_completed_successfully
     networks:
       - backend
 
@@ -116,7 +144,8 @@ services:
     environment:
       <<: *backend-env
     depends_on:
-      - mongodb
+      mongo-init:
+        condition: service_completed_successfully
     networks:
       - backend
 
@@ -129,8 +158,10 @@ services:
     environment:
       <<: *backend-env
     depends_on:
-      - mongodb
-      - kafka
+      mongo-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
     networks:
       - backend
 
@@ -143,8 +174,10 @@ services:
     environment:
       <<: *backend-env
     depends_on:
-      - mongodb
-      - kafka
+      mongo-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
     networks:
       - backend
 

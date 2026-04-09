@@ -190,6 +190,46 @@ Frontend URL:
 
 - `http://127.0.0.1:5173`
 
+## Lab 2 Docker Compose Run
+
+The Lab 2 microservice stack can be started locally with Docker Compose.
+
+Services included:
+
+- `mongodb`
+- `zookeeper`
+- `kafka`
+- `mongo-init`
+- `user-service`
+- `owner-service`
+- `restaurant-service`
+- `review-api-service`
+- `review-worker-service`
+- `api-gateway`
+- `frontend`
+
+Start the stack:
+
+```bash
+docker compose up -d --build
+```
+
+Useful URLs:
+
+- Gateway health: `http://127.0.0.1:8000/health`
+- Gateway API base: `http://127.0.0.1:8000/api/v1`
+- Frontend: `http://127.0.0.1:3000`
+
+The `mongo-init` service automatically:
+
+- creates MongoDB collections and indexes
+- seeds a small demo dataset when the database is empty
+
+Demo accounts for the Compose stack:
+
+- User: `ashley@example.com` / `Passw0rd!`
+- Owner: `owner@example.com` / `Passw0rd!`
+
 ## Recommended Local Run Sequence
 
 From the repository root:
