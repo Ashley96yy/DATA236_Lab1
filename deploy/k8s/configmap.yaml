@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab2-config
+  namespace: yelp-lab2
+data:
+  MONGODB_DB_NAME: yelp_lab2
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  JWT_ALGORITHM: HS256
+  SESSION_TTL_HOURS: "24"
+  KAFKA_REVIEW_CONSUMER_GROUP: review-worker-group

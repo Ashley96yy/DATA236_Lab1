@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-init
+  namespace: yelp-lab2
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app: mongo-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mongo-init
+          image: lab1-mongo-init:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - python scripts/mongo_bootstrap.py && python scripts/seed_lab2_demo_data.py
+          envFrom:
+            - configMapRef:
+                name: lab2-config
+            - secretRef:
+                name: lab2-secrets

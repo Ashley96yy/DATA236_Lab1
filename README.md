@@ -230,6 +230,33 @@ Demo accounts for the Compose stack:
 - User: `ashley@example.com` / `Passw0rd!`
 - Owner: `owner@example.com` / `Passw0rd!`
 
+## Lab 2 Kubernetes / AWS Starter
+
+Kubernetes starter manifests are provided under:
+
+```text
+deploy/k8s/
+```
+
+They include:
+
+- MongoDB
+- Kafka + Zookeeper
+- `mongo-init` job
+- all backend microservices
+- API gateway
+- frontend
+
+For AWS/EKS, replace the local image tags in `deploy/k8s/*.yaml` with your pushed ECR image URIs before applying.
+
+Quick apply command:
+
+```bash
+kubectl apply -k deploy/k8s
+```
+
+See `deploy/k8s/README.md` for deployment notes and screenshot suggestions.
+
 ## Recommended Local Run Sequence
 
 From the repository root:
