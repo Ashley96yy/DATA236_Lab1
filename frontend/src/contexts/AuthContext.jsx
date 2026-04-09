@@ -1,87 +1,38 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 
-import api, { TOKEN_KEY } from "../services/api";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  bootstrapAuth,
+  clearSession,
+  markAuthReady,
+  refreshCurrentUser as refreshCurrentUserThunk,
+  setSession,
+} from "../store/slices/authSlice";
 
-const USER_KEY = "yelp_lab1_user";
 const AuthContext = createContext(null);
 
-function getStoredUser() {
-  const raw = localStorage.getItem(USER_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw);
-  } catch (_error) {
-    localStorage.removeItem(USER_KEY);
-    return null;
-  }
-}
-
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
-  const [user, setUser] = useState(() => getStoredUser());
-  const [isAuthReady, setIsAuthReady] = useState(false);
-
-  const clearSessionState = () => {
-    setToken("");
-    setUser(null);
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-  };
+  const dispatch = useAppDispatch();
+  const { token, user, isAuthReady } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    let active = true;
-
-    async function bootstrapAuth() {
-      if (!token) {
-        if (active) {
-          setUser(null);
-          setIsAuthReady(true);
-        }
-        return;
-      }
-
-      try {
-        const response = await api.get("/auth/me");
-        if (!active) {
-          return;
-        }
-        setUser(response.data);
-        localStorage.setItem(USER_KEY, JSON.stringify(response.data));
-      } catch (_error) {
-        if (active) {
-          clearSessionState();
-        }
-      } finally {
-        if (active) {
-          setIsAuthReady(true);
-        }
-      }
+    if (!token) {
+      dispatch(markAuthReady());
+      return;
     }
-
-    bootstrapAuth();
-    return () => {
-      active = false;
-    };
-  }, [token]);
+    dispatch(bootstrapAuth());
+  }, [dispatch, token]);
 
   const login = ({ accessToken, user: userInfo }) => {
-    setToken(accessToken);
-    setUser(userInfo);
-    localStorage.setItem(TOKEN_KEY, accessToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    dispatch(setSession({ token: accessToken, user: userInfo }));
   };
 
   const logout = () => {
-    clearSessionState();
+    dispatch(clearSession());
   };
 
   const refreshCurrentUser = async () => {
-    const response = await api.get("/auth/me");
-    setUser(response.data);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.data));
-    return response.data;
+    return dispatch(refreshCurrentUserThunk()).unwrap();
   };
 
   const value = useMemo(

@@ -1,7 +1,14 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 
 import { favoritesApi } from "../services/api";
 import { useAuth } from "./AuthContext";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  loadFavorites,
+  optimisticToggleFavorite,
+  resetFavorites,
+  rollbackToggleFavorite,
+} from "../store/slices/favoritesSlice";
 
 const FavoritesContext = createContext(null);
 
@@ -13,42 +20,21 @@ const FavoritesContext = createContext(null);
  */
 export function FavoritesProvider({ children }) {
   const { isAuthenticated } = useAuth();
-  const [favoriteIds, setFavoriteIds] = useState(new Set());
-  const [isLoaded, setIsLoaded] = useState(false);
+  const dispatch = useAppDispatch();
+  const favoriteIds = useAppSelector((state) => state.favorites.ids);
+  const isLoaded = useAppSelector((state) => state.favorites.isLoaded);
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setFavoriteIds(new Set());
-      setIsLoaded(false);
+      dispatch(resetFavorites());
       return;
     }
-    let cancelled = false;
-    (async () => {
-      try {
-        // Fetch up to 100 favorites (backend max per request)
-        const resp = await favoritesApi.list(1, 100);
-        if (!cancelled) {
-          setFavoriteIds(new Set(resp.data.items.map((r) => r.id)));
-        }
-      } catch {
-        // Non-blocking: user just won't see heart state until retry
-      } finally {
-        if (!cancelled) setIsLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isAuthenticated]);
+    dispatch(loadFavorites());
+  }, [dispatch, isAuthenticated]);
 
   async function toggle(restaurantId) {
-    const wasFavorited = favoriteIds.has(restaurantId);
-
-    // Optimistic update
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (wasFavorited) next.delete(restaurantId);
-      else next.add(restaurantId);
-      return next;
-    });
+    const wasFavorited = favoriteIds.includes(restaurantId);
+    dispatch(optimisticToggleFavorite(restaurantId));
 
     try {
       if (wasFavorited) {
@@ -57,18 +43,12 @@ export function FavoritesProvider({ children }) {
         await favoritesApi.add(restaurantId);
       }
     } catch {
-      // Rollback on error
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (wasFavorited) next.add(restaurantId);
-        else next.delete(restaurantId);
-        return next;
-      });
+      dispatch(rollbackToggleFavorite({ restaurantId, wasFavorited }));
     }
   }
 
   function isFavorited(restaurantId) {
-    return favoriteIds.has(restaurantId);
+    return favoriteIds.includes(restaurantId);
   }
 
   return (

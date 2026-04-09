@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import RestaurantCard from "../components/RestaurantCard";
-import api, { extractApiError } from "../services/api";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  fetchRestaurants,
+  setRestaurantFilter,
+  setRestaurantPage,
+} from "../store/slices/restaurantSlice";
 
 const SORT_OPTIONS = [
   { value: "name", label: "Name (A–Z)" },
@@ -13,58 +18,24 @@ const SORT_OPTIONS = [
 
 export default function ExplorePage() {
   const navigate = useNavigate();
-
-  const [filters, setFilters] = useState({
-    name: "",
-    cuisine: "",
-    keywords: "",
-    city: "",
-    zip: "",
-    sort: "name",
-  });
-  const [page, setPage] = useState(1);
-  const [results, setResults] = useState(null); // null = not yet loaded
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const dispatch = useAppDispatch();
+  const { filters, page, results, loadingList: loading, listError: error } = useAppSelector(
+    (state) => state.restaurants
+  );
 
   const debounceRef = useRef(null);
 
   function updateFilter(key, value) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
+    dispatch(setRestaurantFilter({ key, value }));
   }
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchRestaurants();
+      dispatch(fetchRestaurants({ filters, page, limit: 12 }));
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [filters, page]);
-
-  async function fetchRestaurants() {
-    setLoading(true);
-    setError("");
-    try {
-      const params = {};
-      if (filters.name) params.name = filters.name;
-      if (filters.cuisine) params.cuisine = filters.cuisine;
-      if (filters.keywords) params.keywords = filters.keywords;
-      if (filters.city) params.city = filters.city;
-      if (filters.zip) params.zip = filters.zip;
-      if (filters.sort) params.sort = filters.sort;
-      params.page = page;
-      params.limit = 12;
-
-      const resp = await api.get("/restaurants", { params });
-      setResults(resp.data);
-    } catch (err) {
-      setError(extractApiError(err, "Failed to load restaurants."));
-      setResults({ items: [], total: 0, page: 1, limit: 12 });
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [dispatch, filters, page]);
 
   const totalPages = results ? Math.ceil(results.total / results.limit) : 1;
 
@@ -180,7 +151,7 @@ export default function ExplorePage() {
               <button
                 className="btn-page"
                 disabled={page === 1 || loading}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => dispatch(setRestaurantPage(page - 1))}
               >
                 ← Previous
               </button>
@@ -188,7 +159,7 @@ export default function ExplorePage() {
               <button
                 className="btn-page"
                 disabled={page >= totalPages || loading}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => dispatch(setRestaurantPage(page + 1))}
               >
                 Next →
               </button>
