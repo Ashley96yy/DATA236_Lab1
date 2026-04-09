@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import RestaurantCard from "../components/RestaurantCard";
-import { favoritesApi, extractApiError } from "../services/api";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  fetchFavoritesPage,
+  fetchHistory,
+  setFavoritesPage,
+} from "../store/slices/favoritesSlice";
 
 const LIMIT = 10;
 
@@ -18,58 +23,31 @@ function StarDisplay({ rating }) {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [tab, setTab] = useState("favorites");
-
-  // ── Favorites state ─────────────────────────────────────────────────────
-  const [favorites, setFavorites] = useState(null);
-  const [favPage, setFavPage] = useState(1);
-  const [favLoading, setFavLoading] = useState(false);
-  const [favError, setFavError] = useState("");
-
-  // ── History state ────────────────────────────────────────────────────────
-  const [history, setHistory] = useState(null);
-  const [histLoading, setHistLoading] = useState(false);
-  const [histError, setHistError] = useState("");
+  const {
+    paged: favorites,
+    page: favPage,
+    listLoading: favLoading,
+    listError: favError,
+    history,
+    historyLoading: histLoading,
+    historyError: histError,
+  } = useAppSelector((state) => state.favorites);
 
   // Load favorites whenever tab is active or page changes
   useEffect(() => {
     if (tab === "favorites") {
-      loadFavorites();
+      dispatch(fetchFavoritesPage({ page: favPage, limit: LIMIT }));
     }
-  }, [tab, favPage]);
+  }, [dispatch, tab, favPage]);
 
   // Load history once when tab first opened
   useEffect(() => {
     if (tab === "history" && history === null) {
-      loadHistory();
+      dispatch(fetchHistory());
     }
-  }, [tab]);
-
-  async function loadFavorites() {
-    setFavLoading(true);
-    setFavError("");
-    try {
-      const resp = await favoritesApi.list(favPage, LIMIT);
-      setFavorites(resp.data);
-    } catch (err) {
-      setFavError(extractApiError(err, "Failed to load favorites."));
-    } finally {
-      setFavLoading(false);
-    }
-  }
-
-  async function loadHistory() {
-    setHistLoading(true);
-    setHistError("");
-    try {
-      const resp = await favoritesApi.history();
-      setHistory(resp.data);
-    } catch (err) {
-      setHistError(extractApiError(err, "Failed to load history."));
-    } finally {
-      setHistLoading(false);
-    }
-  }
+  }, [dispatch, history, tab]);
 
   const favTotalPages = favorites ? Math.ceil(favorites.total / LIMIT) : 1;
 
@@ -136,7 +114,7 @@ export default function DashboardPage() {
                   <button
                     className="btn-page"
                     disabled={favPage === 1 || favLoading}
-                    onClick={() => setFavPage((p) => p - 1)}
+                    onClick={() => dispatch(setFavoritesPage(favPage - 1))}
                   >
                     ← Previous
                   </button>
@@ -144,7 +122,7 @@ export default function DashboardPage() {
                   <button
                     className="btn-page"
                     disabled={favPage >= favTotalPages || favLoading}
-                    onClick={() => setFavPage((p) => p + 1)}
+                    onClick={() => dispatch(setFavoritesPage(favPage + 1))}
                   >
                     Next →
                   </button>
