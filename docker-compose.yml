@@ -1,0 +1,177 @@
+# ── Shared environment injected into every backend service ───────────────────
+x-backend-env: &backend-env
+  MONGODB_URL: mongodb://lab2admin:lab2secret@mongodb:27017/?authSource=admin
+  MONGODB_DB_NAME: yelp_lab2
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-in-prod}
+  JWT_ALGORITHM: HS256
+  SESSION_TTL_HOURS: "24"
+
+# ── Build context helper for all backend services ────────────────────────────
+# All Dockerfiles are in services/<name>/ but COPY paths reference shared/,
+# so the build context must be backend/.
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: lab2admin
+      MONGO_INITDB_ROOT_PASSWORD: lab2secret
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - backend
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - backend
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Two listeners: PLAINTEXT for inter-container, PLAINTEXT_HOST for host access
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    networks:
+      - backend
+
+  # ── API Gateway (nginx) ────────────────────────────────────────────────────
+
+  api-gateway:
+    image: nginx:1.25-alpine
+    container_name: api-gateway
+    restart: unless-stopped
+    depends_on:
+      - user-service
+      - owner-service
+      - restaurant-service
+      - review-api-service
+    volumes:
+      - ./deploy/docker/nginx-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+      - frontend
+
+  # ── Backend microservices ──────────────────────────────────────────────────
+
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: services/user-service/Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  owner-service:
+    build:
+      context: ./backend
+      dockerfile: services/owner-service/Dockerfile
+    container_name: owner-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  restaurant-service:
+    build:
+      context: ./backend
+      dockerfile: services/restaurant-service/Dockerfile
+    container_name: restaurant-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+  review-api-service:
+    build:
+      context: ./backend
+      dockerfile: services/review-api-service/Dockerfile
+    container_name: review-api-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    depends_on:
+      - mongodb
+      - kafka
+    networks:
+      - backend
+
+  review-worker-service:
+    build:
+      context: ./backend
+      dockerfile: services/review-worker-service/Dockerfile
+    container_name: review-worker-service
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+    depends_on:
+      - mongodb
+      - kafka
+    networks:
+      - backend
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    container_name: frontend
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend
+
+# ── Volumes & networks ────────────────────────────────────────────────────────
+
+volumes:
+  mongo_data:
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
