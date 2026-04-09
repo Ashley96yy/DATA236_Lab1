@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
-import api, { extractApiError } from "../services/api";
-
-const EMPTY_FORM = {
-  cuisines: [],
-  price_range: "",
-  location: "",
-  search_radius_km: "",
-  dietary_needs: [],
-  ambiance: [],
-  sort_preference: "rating"
-};
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import {
+  clearPreferenceFeedback,
+  fetchPreferences,
+  savePreferences,
+  setPreferenceField,
+  togglePreferenceValue,
+} from "../store/slices/preferencesSlice";
 
 const CUISINE_OPTIONS = [
   "American",
@@ -47,22 +44,6 @@ const AMBIANCE_OPTIONS = [
   "Romantic",
   "Trendy"
 ];
-
-function preferencesToForm(data) {
-  const firstLocation = Array.isArray(data?.preferred_locations)
-    ? data.preferred_locations[0] || ""
-    : "";
-
-  return {
-    cuisines: Array.isArray(data?.cuisines) ? data.cuisines : [],
-    price_range: data?.price_range || "",
-    location: firstLocation,
-    search_radius_km: data?.search_radius_km ?? "",
-    dietary_needs: Array.isArray(data?.dietary_needs) ? data.dietary_needs : [],
-    ambiance: Array.isArray(data?.ambiance) ? data.ambiance : [],
-    sort_preference: data?.sort_preference || "rating"
-  };
-}
 
 function mergeOptions(baseOptions, selectedOptions) {
   return [...new Set([...baseOptions, ...(selectedOptions || [])])];
@@ -148,84 +129,28 @@ function MultiSelectDropdown({ label, name, options, selectedValues, onToggle })
 }
 
 export default function PreferencesPage() {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const dispatch = useAppDispatch();
+  const { form, loading, saving, error, success } = useAppSelector((state) => state.preferences);
 
   useEffect(() => {
-    let active = true;
-
-    async function loadPreferences() {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await api.get("/users/me/preferences");
-        if (active) {
-          setForm(preferencesToForm(response.data));
-        }
-      } catch (requestError) {
-        if (active) {
-          setError(extractApiError(requestError, "Failed to load preferences."));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadPreferences();
+    dispatch(fetchPreferences());
     return () => {
-      active = false;
+      dispatch(clearPreferenceFeedback());
     };
-  }, []);
+  }, [dispatch]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    dispatch(setPreferenceField({ name, value }));
   };
 
   const handleMultiSelectToggle = (fieldName, optionValue) => {
-    setForm((prev) => {
-      const currentValues = prev[fieldName] || [];
-      const exists = currentValues.includes(optionValue);
-      return {
-        ...prev,
-        [fieldName]: exists
-          ? currentValues.filter((value) => value !== optionValue)
-          : [...currentValues, optionValue]
-      };
-    });
+    dispatch(togglePreferenceValue({ fieldName, optionValue }));
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSaving(true);
-    setError("");
-    setSuccess("");
-
-    const payload = {
-      cuisines: form.cuisines,
-      price_range: form.price_range || null,
-      preferred_locations: form.location.trim() ? [form.location.trim()] : [],
-      search_radius_km:
-        form.search_radius_km === "" ? null : Number.parseInt(form.search_radius_km, 10),
-      dietary_needs: form.dietary_needs,
-      ambiance: form.ambiance,
-      sort_preference: form.sort_preference || "rating"
-    };
-
-    try {
-      const response = await api.put("/users/me/preferences", payload);
-      setForm(preferencesToForm(response.data));
-      setSuccess("Preferences updated.");
-    } catch (requestError) {
-      setError(extractApiError(requestError, "Failed to update preferences."));
-    } finally {
-      setSaving(false);
-    }
+    dispatch(savePreferences(form));
   };
 
   if (loading) {
