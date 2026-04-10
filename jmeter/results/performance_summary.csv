@@ -1,0 +1,16 @@
+endpoint,concurrent_users,avg_response_time_ms,throughput_requests_per_sec,error_rate_percent,notes
+login,100,232.68,5.81,0.0,Baseline login load
+login,200,234.35,5.26,0.0,Stable under moderate concurrency
+login,300,713.45,5.98,0.0,Latency spike under heavier load
+login,400,243.54,5.16,0.0,Recovered after prior spike
+login,500,418.34,5.26,0.0,Higher tail latency at peak load
+restaurant_search,100,8.43,5.13,0.0,Fast baseline search
+restaurant_search,200,12.51,5.08,0.0,Minor increase under load
+restaurant_search,300,157.72,5.04,0.0,Noticeable slowdown with occasional long tail
+restaurant_search,400,21.40,5.06,0.0,Recovered after transient spike
+restaurant_search,500,920.45,5.04,0.0,Large long-tail latency at peak load
+create_review,100,120.20,5.38,0.0,Review endpoint only; login sampler excluded
+create_review,200,117.50,5.24,0.0,Stable queued review creation
+create_review,300,884.37,3.36,0.0,Queue and worker delay visible
+create_review,400,289.47,3.40,0.0,Still slower under heavy concurrency
+create_review,500,116.20,5.16,0.0,Recovered in this run despite peak concurrency

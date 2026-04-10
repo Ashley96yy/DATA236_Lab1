@@ -5,11 +5,13 @@ import sys
 from pathlib import Path
 
 
-def summarize_jtl(path: Path) -> dict[str, float]:
+def summarize_jtl(path: Path, label_filter: str | None = None) -> dict[str, float]:
     rows = []
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
+            if label_filter and label_filter not in str(row.get("label", "")):
+                continue
             rows.append(row)
 
     if not rows:
@@ -40,14 +42,17 @@ def summarize_jtl(path: Path) -> dict[str, float]:
 
 
 def main() -> None:
-    if len(sys.argv) != 2:
-      raise SystemExit("Usage: python jmeter/scripts/summarize_jtl.py <path-to-jtl>")
+    if len(sys.argv) not in {2, 3}:
+      raise SystemExit(
+          "Usage: python jmeter/scripts/summarize_jtl.py <path-to-jtl> [label-substring]"
+      )
 
     jtl_path = Path(sys.argv[1]).resolve()
     if not jtl_path.exists():
       raise SystemExit(f"JTL file not found: {jtl_path}")
 
-    summary = summarize_jtl(jtl_path)
+    label_filter = sys.argv[2] if len(sys.argv) == 3 else None
+    summary = summarize_jtl(jtl_path, label_filter=label_filter)
     for key, value in summary.items():
         print(f"{key}: {value}")
 
