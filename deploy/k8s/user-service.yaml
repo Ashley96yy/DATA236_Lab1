@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: lab1-user-service:latest
+          image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-user-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001

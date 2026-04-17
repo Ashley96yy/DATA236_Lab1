@@ -3,7 +3,10 @@ kind: Service
 metadata:
   name: frontend
   namespace: yelp-lab2
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
 spec:
+  loadBalancerClass: eks.amazonaws.com/nlb
   selector:
     app: frontend
   ports:
@@ -28,7 +31,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: lab1-frontend:latest
+          image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

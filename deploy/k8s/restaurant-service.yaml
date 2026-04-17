@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: restaurant-service
-          image: lab1-restaurant-service:latest
+          image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-restaurant-service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8003

@@ -13,7 +13,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mongo-init
-          image: lab1-mongo-init:latest
+          image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-mongo-init:latest
           imagePullPolicy: IfNotPresent
           command:
             - sh

@@ -54,6 +54,7 @@ spec:
     - metadata:
         name: mongo-data
       spec:
+        storageClassName: auto-ebs-sc
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:

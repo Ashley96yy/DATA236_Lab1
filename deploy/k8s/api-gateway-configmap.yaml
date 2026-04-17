@@ -8,11 +8,9 @@ data:
     server {
         listen 8000;
         server_name _;
-        resolver 127.0.0.11 valid=10s;
 
         location /api/v1/auth/owner {
-            set $backend       http://owner-service:8002;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://owner-service:8002;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -20,8 +18,7 @@ data:
         }
 
         location /api/v1/auth {
-            set $backend       http://user-service:8001;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://user-service:8001;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -29,8 +26,7 @@ data:
         }
 
         location /api/v1/users {
-            set $backend       http://user-service:8001;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://user-service:8001;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -38,8 +34,7 @@ data:
         }
 
         location /api/v1/ai-assistant {
-            set $backend       http://user-service:8001;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://user-service:8001;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -47,8 +42,7 @@ data:
         }
 
         location /api/v1/favorites {
-            set $backend       http://user-service:8001;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://user-service:8001;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -56,8 +50,7 @@ data:
         }
 
         location /api/v1/owners {
-            set $backend       http://owner-service:8002;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://owner-service:8002;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -65,8 +58,7 @@ data:
         }
 
         location /api/v1/owner {
-            set $backend       http://owner-service:8002;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://owner-service:8002;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -74,8 +66,7 @@ data:
         }
 
         location ~ ^/api/v1/reviews/ {
-            set $backend       http://review-api-service:8004;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://review-api-service:8004;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -83,11 +74,11 @@ data:
         }
 
         location ~ ^/api/v1/restaurants/[0-9]+/reviews(/?)$ {
-            set $backend http://restaurant-service:8003;
             if ($request_method = POST) {
-                set $backend http://review-api-service:8004;
+                proxy_pass http://review-api-service:8004;
+                break;
             }
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://restaurant-service:8003;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -95,8 +86,7 @@ data:
         }
 
         location /api/v1/restaurants {
-            set $backend       http://restaurant-service:8003;
-            proxy_pass         $backend$request_uri;
+            proxy_pass         http://restaurant-service:8003;
             proxy_set_header   Host              $host;
             proxy_set_header   X-Real-IP         $remote_addr;
             proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
