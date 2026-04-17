@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import base64
+import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from shared.auth.security import hash_password
 from shared.db.collections import (
@@ -16,6 +19,8 @@ from shared.db.collections import (
     USERS,
 )
 from shared.db.mongo import get_mongo_database, ping_mongo
+
+FIXTURE_PATH = Path(__file__).resolve().with_name("lab2_seed_fixture.json")
 
 
 def _now() -> datetime:
@@ -358,12 +363,75 @@ def _sync_counters(db) -> None:
         db[COUNTERS].replace_one({"_id": collection_name}, {"_id": collection_name, "seq": seq}, upsert=True)
 
 
+def _load_fixture() -> dict | None:
+    if not FIXTURE_PATH.exists():
+        return None
+    raw = FIXTURE_PATH.read_text(encoding="utf-8").strip()
+    if not raw or raw == "{}":
+        return None
+    return json.loads(raw)
+
+
+def _seed_from_fixture(db, fixture: dict) -> dict[str, int]:
+    collections = {
+        USERS: fixture.get("users", []),
+        OWNERS: fixture.get("owners", []),
+        USER_PREFERENCES: fixture.get("user_preferences", []),
+        RESTAURANTS: fixture.get("restaurants", []),
+        REVIEWS: fixture.get("reviews", []),
+        FAVORITES: fixture.get("favorites", []),
+        RESTAURANT_PHOTOS: fixture.get("restaurant_photos", []),
+        ACTIVITY_LOGS: fixture.get("activity_logs", []),
+    }
+
+    for collection_name, documents in collections.items():
+        for document in documents:
+            db[collection_name].replace_one({"_id": document["_id"]}, document, upsert=True)
+
+    counters = {
+        USERS: max((doc["_id"] for doc in collections[USERS]), default=0),
+        OWNERS: max((doc["_id"] for doc in collections[OWNERS]), default=0),
+        RESTAURANTS: max((doc["_id"] for doc in collections[RESTAURANTS]), default=0),
+        REVIEWS: max((doc["_id"] for doc in collections[REVIEWS]), default=0),
+        FAVORITES: max((doc["_id"] for doc in collections[FAVORITES]), default=0),
+        RESTAURANT_PHOTOS: max((doc["_id"] for doc in collections[RESTAURANT_PHOTOS]), default=0),
+    }
+    for collection_name, seq in counters.items():
+        db[COUNTERS].replace_one({"_id": collection_name}, {"_id": collection_name, "seq": seq}, upsert=True)
+
+    return {
+        "users": len(collections[USERS]),
+        "owners": len(collections[OWNERS]),
+        "user_preferences": len(collections[USER_PREFERENCES]),
+        "restaurants": len(collections[RESTAURANTS]),
+        "reviews": len(collections[REVIEWS]),
+        "favorites": len(collections[FAVORITES]),
+        "restaurant_photos": len(collections[RESTAURANT_PHOTOS]),
+        "activity_logs": len(collections[ACTIVITY_LOGS]),
+    }
+
+
 def seed_demo_data() -> None:
     ping_mongo()
     db = get_mongo_database()
+    force_seed = os.getenv("LAB2_FORCE_SEED", "").lower() in {"1", "true", "yes"}
 
-    if db[USERS].count_documents({}) > 0 or db[RESTAURANTS].count_documents({}) > 0:
+    if not force_seed and (db[USERS].count_documents({}) > 0 or db[RESTAURANTS].count_documents({}) > 0):
         print("MongoDB already contains application data. Skipping demo seed.")
+        return
+
+    fixture = _load_fixture()
+    if fixture:
+        summary = _seed_from_fixture(db, fixture)
+        print(f"MongoDB fixture seed complete from {FIXTURE_PATH.name}.")
+        for key, value in summary.items():
+            print(f"{key}: {value}")
+        demo_user = next((user for user in fixture.get("users", []) if user.get("email")), None)
+        demo_owner = next((owner for owner in fixture.get("owners", []) if owner.get("email")), None)
+        if demo_user:
+            print(f"demo user login: {demo_user['email']} / use existing MySQL password")
+        if demo_owner:
+            print(f"demo owner login: {demo_owner['email']} / use existing MySQL password")
         return
 
     users = _seed_users(db)

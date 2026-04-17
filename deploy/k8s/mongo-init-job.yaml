@@ -14,11 +14,14 @@ spec:
       containers:
         - name: mongo-init
           image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-mongo-init:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command:
             - sh
             - -c
             - python scripts/mongo_bootstrap.py && python scripts/seed_lab2_demo_data.py
+          env:
+            - name: LAB2_FORCE_SEED
+              value: "true"
           envFrom:
             - configMapRef:
                 name: lab2-config

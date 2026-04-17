@@ -8,6 +8,7 @@ data:
     server {
         listen 8000;
         server_name _;
+        resolver 10.100.0.10 valid=10s ipv6=off;
 
         location /api/v1/auth/owner {
             proxy_pass         http://owner-service:8002;

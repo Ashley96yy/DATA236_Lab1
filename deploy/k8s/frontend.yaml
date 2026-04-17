@@ -32,7 +32,7 @@ spec:
       containers:
         - name: frontend
           image: 197496953539.dkr.ecr.us-east-2.amazonaws.com/lab2-frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
           readinessProbe:

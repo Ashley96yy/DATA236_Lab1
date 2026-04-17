@@ -68,6 +68,10 @@ def _serialize_user(user: dict) -> UserResponse:
         languages: str | list[str] | None = ", ".join(raw_languages)
     else:
         languages = raw_languages
+    raw_gender = user.get("gender")
+    normalized_gender = raw_gender.lower() if isinstance(raw_gender, str) else raw_gender
+    if normalized_gender not in {"male", "female", "non_binary", "other", "prefer_not_to_say", None}:
+        normalized_gender = None
     return UserResponse(
         id=int(user["_id"]),
         name=user["name"],
@@ -78,7 +82,7 @@ def _serialize_user(user: dict) -> UserResponse:
         state=user.get("state"),
         country=user.get("country"),
         languages=languages,
-        gender=user.get("gender"),
+        gender=normalized_gender,
         avatar_url=user.get("avatar_url"),
     )
 
@@ -272,6 +276,11 @@ def login(payload: LoginRequest) -> LoginResponse:
 @router.post("/auth/token", response_model=LoginResponse, include_in_schema=False)
 def login_token(form_data: OAuth2PasswordRequestForm = Depends()) -> LoginResponse:
     return login(LoginRequest(email=form_data.username, password=form_data.password))
+
+
+@router.get("/auth/me", response_model=UserResponse)
+def read_auth_me(current_user: dict = Depends(get_current_user)) -> UserResponse:
+    return _serialize_user(current_user)
 
 
 @router.get("/users/me", response_model=UserResponse)

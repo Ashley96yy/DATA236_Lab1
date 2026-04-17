@@ -9,11 +9,15 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   clearSelectedRestaurant,
   fetchRestaurantDetail,
+  setSelectedRestaurant,
 } from "../store/slices/restaurantSlice";
 import {
   clearReviewFeedback,
   fetchRestaurantReviews,
+  removeReview,
+  replaceReviews,
   setReviewFeedback,
+  upsertReview,
 } from "../store/slices/reviewSlice";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -121,14 +125,20 @@ export default function RestaurantDetailPage() {
   const syncReviewMutation = useCallback(async (predicate, attempts = 8, delayMs = 400) => {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       try {
-        const [reviewResult, restaurantResult] = await Promise.all([
-          dispatch(fetchRestaurantReviews({ restaurantId: id, limit: 50 })).unwrap(),
-          dispatch(fetchRestaurantDetail(id)).unwrap(),
+        const [reviewResponse, restaurantResponse] = await Promise.all([
+          api.get(`/restaurants/${id}/reviews?limit=50`),
+          api.get(`/restaurants/${id}`),
         ]);
-        const nextReviews = reviewResult.items || [];
-        const nextRestaurant = restaurantResult;
+        const nextReviews = reviewResponse.data.items || [];
+        const nextRestaurant = restaurantResponse.data;
 
         if (predicate(nextReviews, nextRestaurant)) {
+          dispatch(replaceReviews({
+            restaurantId: id,
+            items: nextReviews,
+            total: reviewResponse.data.total || nextReviews.length,
+          }));
+          dispatch(setSelectedRestaurant(nextRestaurant));
           return true;
         }
       } catch {
@@ -136,10 +146,22 @@ export default function RestaurantDetailPage() {
       }
       await wait(delayMs);
     }
-    await loadReviews();
-    await loadRestaurant();
+    await Promise.all([loadReviews(), loadRestaurant()]);
     return false;
-  }, [dispatch, id, loadReviews]);
+  }, [dispatch, id]);
+
+  const updateRestaurantMetrics = useCallback((nextReviews) => {
+    if (!restaurant) return;
+    const reviewCount = nextReviews.length;
+    const averageRating = reviewCount > 0
+      ? Number((nextReviews.reduce((sum, item) => sum + (item.rating || 0), 0) / reviewCount).toFixed(2))
+      : 0;
+    dispatch(setSelectedRestaurant({
+      ...restaurant,
+      review_count: reviewCount,
+      average_rating: averageRating,
+    }));
+  }, [dispatch, restaurant]);
 
   useEffect(() => {
     if (storeDetailError && !error) {
@@ -230,18 +252,18 @@ export default function RestaurantDetailPage() {
     );
   }
 
-  if (!restaurant) {
-    return null;
-  }
-
   // ── Render states ─────────────────────────────────────────────────────────
-  if (loading) {
+  if (!restaurant && loading) {
     return (
       <div className="explore-status">
         <div className="spinner" />
         <p>Loading restaurant…</p>
       </div>
     );
+  }
+
+  if (!restaurant) {
+    return null;
   }
 
   if (error) {
@@ -401,6 +423,11 @@ export default function RestaurantDetailPage() {
             <h2 className="section-heading">
               Reviews {reviewsTotal > 0 && <span className="reviews-count-badge">({reviewsTotal})</span>}
             </h2>
+            {loading && (
+              <p className="muted" style={{ marginTop: -8, marginBottom: 12 }}>
+                Syncing latest restaurant details…
+              </p>
+            )}
 
             {/* Write / Edit review form */}
             {isAuthenticated && (
@@ -471,6 +498,22 @@ export default function RestaurantDetailPage() {
                             rating: editingReview.rating,
                             comment: editingReview.comment || null,
                           });
+                          const optimisticReview = {
+                            ...reviews.find((item) => item.id === editingReview.id),
+                            id: editingReview.id,
+                            restaurant_id: Number(id),
+                            user_id: user?.id,
+                            user_name: user?.name || "You",
+                            rating: expectedRating,
+                            comment: expectedComment,
+                            status: "queued",
+                            updated_at: new Date().toISOString(),
+                          };
+                          const nextReviews = reviews.map((item) => (
+                            item.id === editingReview.id ? { ...item, ...optimisticReview } : item
+                          ));
+                          dispatch(upsertReview(optimisticReview));
+                          updateRestaurantMetrics(nextReviews);
                           setReviewSuccess("Review update queued. Syncing...");
                           dispatch(setReviewFeedback({ status: "queued", message: "Review update queued." }));
                           setEditingReview(null);
@@ -488,10 +531,24 @@ export default function RestaurantDetailPage() {
                           const expectedRating = reviewRating;
                           const expectedComment = reviewComment || null;
                           const expectedUserId = user?.id;
-                          await api.post(`/restaurants/${id}/reviews`, {
+                          const response = await api.post(`/restaurants/${id}/reviews`, {
                             rating: reviewRating,
                             comment: reviewComment || null,
                           });
+                          const optimisticReview = {
+                            id: response.data?.review_id ?? `pending-${Date.now()}`,
+                            restaurant_id: Number(id),
+                            user_id: expectedUserId,
+                            user_name: user?.name || "You",
+                            rating: expectedRating,
+                            comment: expectedComment,
+                            status: "queued",
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                          };
+                          const nextReviews = [optimisticReview, ...reviews];
+                          dispatch(upsertReview(optimisticReview));
+                          updateRestaurantMetrics(nextReviews);
                           setReviewSuccess("Review submitted and syncing...");
                           dispatch(setReviewFeedback({ status: "queued", message: "Review submitted and syncing..." }));
                           setReviewRating(0);
@@ -580,6 +637,9 @@ export default function RestaurantDetailPage() {
                             if (!window.confirm("Delete this review?")) return;
                             try {
                               await api.delete(`/reviews/${rv.id}`);
+                              const nextReviews = reviews.filter((item) => item.id !== rv.id);
+                              dispatch(removeReview(rv.id));
+                              updateRestaurantMetrics(nextReviews);
                               setReviewSuccess("Review delete queued. Syncing...");
                               dispatch(setReviewFeedback({ status: "queued", message: "Review delete queued." }));
                               await syncReviewMutation((items) => !items.some((item) => item.id === rv.id));
