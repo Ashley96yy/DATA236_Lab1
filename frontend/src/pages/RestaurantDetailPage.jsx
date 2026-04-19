@@ -57,6 +57,7 @@ export default function RestaurantDetailPage() {
   const { isAuthenticated, user } = useAuth();
   const { isOwnerAuthenticated, owner } = useOwnerAuth();
   const photoInputRef = useRef(null);
+  const editFormRef = useRef(null);
 
   const {
     selectedRestaurant: restaurant,
@@ -111,7 +112,34 @@ export default function RestaurantDetailPage() {
 
   useEffect(() => {
     loadReviews();
-  }, [loadReviews]);
+
+    const fetchSilently = async () => {
+      try {
+        const [reviewResp, restResp] = await Promise.all([
+          api.get(`/restaurants/${id}/reviews?limit=50`),
+          api.get(`/restaurants/${id}`)
+        ]);
+        dispatch(replaceReviews({
+          restaurantId: id,
+          items: reviewResp.data.items || [],
+          total: reviewResp.data.total || (reviewResp.data.items || []).length,
+        }));
+        dispatch(setSelectedRestaurant(restResp.data));
+      } catch (e) {
+        // ignore background fetch errors
+      }
+    };
+
+    const intervalId = setInterval(fetchSilently, 5000);
+    const handleFocus = () => fetchSilently();
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadReviews, id, dispatch]);
 
   async function loadRestaurant() {
     setError("");
@@ -429,12 +457,10 @@ export default function RestaurantDetailPage() {
               </p>
             )}
 
-            {/* Write / Edit review form */}
-            {isAuthenticated && (
-              <div className="review-form-card">
-                <h3 className="review-form-title">
-                  {editingReview ? "Edit Your Review" : "Write a Review"}
-                </h3>
+            {/* Write review form */}
+            {isAuthenticated && !editingReview && (
+              <div className="review-form-card" ref={editFormRef}>
+                <h3 className="review-form-title">Write a Review</h3>
 
                 {reviewError && <div className="alert alert--error">{reviewError}</div>}
                 {reviewSuccess && <div className="alert alert--success">{reviewSuccess}</div>}
@@ -442,9 +468,7 @@ export default function RestaurantDetailPage() {
                 {/* Star selector */}
                 <div className="star-selector">
                   {[1, 2, 3, 4, 5].map((s) => {
-                    const active = editingReview
-                      ? s <= (hoverRating || editingReview.rating)
-                      : s <= (hoverRating || reviewRating);
+                    const active = s <= (hoverRating || reviewRating);
                     return (
                       <button
                         key={s}
@@ -452,10 +476,7 @@ export default function RestaurantDetailPage() {
                         className={`star-btn${active ? " active" : ""}`}
                         onMouseEnter={() => setHoverRating(s)}
                         onMouseLeave={() => setHoverRating(0)}
-                        onClick={() => {
-                          if (editingReview) setEditingReview({ ...editingReview, rating: s });
-                          else setReviewRating(s);
-                        }}
+                        onClick={() => setReviewRating(s)}
                         aria-label={`${s} star${s > 1 ? "s" : ""}`}
                       >
                         ★
@@ -463,20 +484,15 @@ export default function RestaurantDetailPage() {
                     );
                   })}
                   <span className="star-label">
-                    {(editingReview ? editingReview.rating : reviewRating) > 0
-                      ? `${editingReview ? editingReview.rating : reviewRating} / 5`
-                      : "Select rating"}
+                    {reviewRating > 0 ? `${reviewRating} / 5` : "Select rating"}
                   </span>
                 </div>
 
                 <textarea
                   className="review-textarea"
                   placeholder="Share your experience (optional)"
-                  value={editingReview ? editingReview.comment : reviewComment}
-                  onChange={(e) => {
-                    if (editingReview) setEditingReview({ ...editingReview, comment: e.target.value });
-                    else setReviewComment(e.target.value);
-                  }}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
                   rows={3}
                 />
 
@@ -484,86 +500,47 @@ export default function RestaurantDetailPage() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={reviewSubmitting || (editingReview ? editingReview.rating < 1 : reviewRating < 1)}
+                    disabled={reviewSubmitting || reviewRating < 1}
                     onClick={async () => {
                       setReviewError("");
                       setReviewSuccess("");
                       setReviewSubmitting(true);
                       try {
-                        if (editingReview) {
-                          const expectedReviewId = editingReview.id;
-                          const expectedRating = editingReview.rating;
-                          const expectedComment = editingReview.comment || null;
-                          await api.put(`/reviews/${editingReview.id}`, {
-                            rating: editingReview.rating,
-                            comment: editingReview.comment || null,
-                          });
-                          const optimisticReview = {
-                            ...reviews.find((item) => item.id === editingReview.id),
-                            id: editingReview.id,
-                            restaurant_id: Number(id),
-                            user_id: user?.id,
-                            user_name: user?.name || "You",
-                            rating: expectedRating,
-                            comment: expectedComment,
-                            status: "queued",
-                            updated_at: new Date().toISOString(),
-                          };
-                          const nextReviews = reviews.map((item) => (
-                            item.id === editingReview.id ? { ...item, ...optimisticReview } : item
-                          ));
-                          dispatch(upsertReview(optimisticReview));
-                          updateRestaurantMetrics(nextReviews);
-                          setReviewSuccess("Review update queued. Syncing...");
-                          dispatch(setReviewFeedback({ status: "queued", message: "Review update queued." }));
-                          setEditingReview(null);
-                          await syncReviewMutation(
-                            (items) => items.some(
-                              (item) =>
-                                item.id === expectedReviewId &&
-                                item.rating === expectedRating &&
-                                (item.comment || null) === expectedComment,
-                            ),
-                          );
-                          setReviewSuccess("Review updated!");
-                          dispatch(setReviewFeedback({ status: "success", message: "Review updated!" }));
-                        } else {
-                          const expectedRating = reviewRating;
-                          const expectedComment = reviewComment || null;
-                          const expectedUserId = user?.id;
-                          const response = await api.post(`/restaurants/${id}/reviews`, {
-                            rating: reviewRating,
-                            comment: reviewComment || null,
-                          });
-                          const optimisticReview = {
-                            id: response.data?.review_id ?? `pending-${Date.now()}`,
-                            restaurant_id: Number(id),
-                            user_id: expectedUserId,
-                            user_name: user?.name || "You",
-                            rating: expectedRating,
-                            comment: expectedComment,
-                            status: "queued",
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                          };
-                          const nextReviews = [optimisticReview, ...reviews];
-                          dispatch(upsertReview(optimisticReview));
-                          updateRestaurantMetrics(nextReviews);
-                          setReviewSuccess("Review submitted and syncing...");
-                          dispatch(setReviewFeedback({ status: "queued", message: "Review submitted and syncing..." }));
-                          setReviewRating(0);
-                          setReviewComment("");
-                          await syncReviewMutation(
-                            (items) => items.some(
-                              (item) =>
-                                item.user_id === expectedUserId &&
-                                item.rating === expectedRating &&
-                                (item.comment || null) === expectedComment,
-                            ),
-                          );
-                          setReviewSuccess("Review submitted!");
-                          dispatch(setReviewFeedback({ status: "success", message: "Review submitted!" }));
-                        }
+                        const expectedRating = reviewRating;
+                        const expectedComment = reviewComment || null;
+                        const expectedUserId = user?.id;
+                        const response = await api.post(`/restaurants/${id}/reviews`, {
+                          rating: reviewRating,
+                          comment: reviewComment || null,
+                        });
+                        const optimisticReview = {
+                          id: response.data?.review_id ?? `pending-${Date.now()}`,
+                          restaurant_id: Number(id),
+                          user_id: expectedUserId,
+                          user_name: user?.name || "You",
+                          rating: expectedRating,
+                          comment: expectedComment,
+                          status: "queued",
+                          created_at: new Date().toISOString(),
+                          updated_at: new Date().toISOString(),
+                        };
+                        const nextReviews = [optimisticReview, ...reviews];
+                        dispatch(upsertReview(optimisticReview));
+                        updateRestaurantMetrics(nextReviews);
+                        setReviewSuccess("Review submitted and syncing...");
+                        dispatch(setReviewFeedback({ status: "queued", message: "Review submitted and syncing..." }));
+                        setReviewRating(0);
+                        setReviewComment("");
+                        await syncReviewMutation(
+                          (items) => items.some(
+                            (item) =>
+                              item.user_id === expectedUserId &&
+                              item.rating === expectedRating &&
+                              (item.comment || null) === expectedComment,
+                          ),
+                        );
+                        setReviewSuccess("Review submitted!");
+                        dispatch(setReviewFeedback({ status: "success", message: "Review submitted!" }));
                       } catch (err) {
                         setReviewError(extractApiError(err, "Could not submit review."));
                         dispatch(setReviewFeedback({ status: "error", message: "Could not submit review." }));
@@ -572,18 +549,8 @@ export default function RestaurantDetailPage() {
                       }
                     }}
                   >
-                    {reviewSubmitting ? "Saving…" : editingReview ? "Save Changes" : "Submit Review"}
+                    {reviewSubmitting ? "Saving…" : "Submit Review"}
                   </button>
-
-                  {editingReview && (
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => { setEditingReview(null); setReviewError(""); }}
-                    >
-                      Cancel
-                    </button>
-                  )}
                 </div>
               </div>
             )}
@@ -599,61 +566,154 @@ export default function RestaurantDetailPage() {
               <div className="review-list">
                 {reviews.map((rv) => (
                   <div key={rv.id} className="review-card">
-                    <div className="review-header">
-                      <div className="review-meta">
-                        <span className="review-author">{rv.user_name}</span>
-                        <span className="review-date">
-                          {new Date(rv.created_at).toLocaleDateString()}
-                        </span>
+                    {editingReview?.id === rv.id ? (
+                      <div className="review-form-inline">
+                        {reviewError && <div className="alert alert--error">{reviewError}</div>}
+                        <div className="star-selector">
+                          {[1, 2, 3, 4, 5].map((s) => {
+                            const active = s <= (hoverRating || editingReview.rating);
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                className={`star-btn${active ? " active" : ""}`}
+                                onMouseEnter={() => setHoverRating(s)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                onClick={() => setEditingReview({ ...editingReview, rating: s })}
+                              >
+                                ★
+                              </button>
+                            );
+                          })}
+                          <span className="star-label">
+                            {editingReview.rating > 0 ? `${editingReview.rating} / 5` : "Select rating"}
+                          </span>
+                        </div>
+                        <textarea
+                          className="review-textarea"
+                          placeholder="Share your experience (optional)"
+                          value={editingReview.comment}
+                          onChange={(e) => setEditingReview({ ...editingReview, comment: e.target.value })}
+                          rows={3}
+                        />
+                        <div className="review-form-actions">
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            disabled={reviewSubmitting || editingReview.rating < 1}
+                            onClick={async () => {
+                              setReviewError("");
+                              setReviewSubmitting(true);
+                              try {
+                                const expectedReviewId = editingReview.id;
+                                const expectedRating = editingReview.rating;
+                                const expectedComment = editingReview.comment || null;
+                                await api.put(`/reviews/${editingReview.id}`, {
+                                  rating: editingReview.rating,
+                                  comment: editingReview.comment || null,
+                                });
+                                const optimisticReview = {
+                                  ...reviews.find((item) => item.id === editingReview.id),
+                                  id: editingReview.id,
+                                  restaurant_id: Number(id),
+                                  user_id: user?.id,
+                                  user_name: user?.name || "You",
+                                  rating: expectedRating,
+                                  comment: expectedComment,
+                                  status: "queued",
+                                  updated_at: new Date().toISOString(),
+                                };
+                                const nextReviews = reviews.map((item) => (
+                                  item.id === editingReview.id ? { ...item, ...optimisticReview } : item
+                                ));
+                                dispatch(upsertReview(optimisticReview));
+                                updateRestaurantMetrics(nextReviews);
+                                setEditingReview(null);
+                                await syncReviewMutation(
+                                  (items) => items.some(
+                                    (item) =>
+                                      item.id === expectedReviewId &&
+                                      item.rating === expectedRating &&
+                                      (item.comment || null) === expectedComment,
+                                  ),
+                                );
+                              } catch (err) {
+                                setReviewError(extractApiError(err, "Could not update review."));
+                              } finally {
+                                setReviewSubmitting(false);
+                              }
+                            }}
+                          >
+                            {reviewSubmitting ? "Saving…" : "Save Changes"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => { setEditingReview(null); setReviewError(""); }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                      <div className="review-stars">
-                        {[1,2,3,4,5].map((s) => (
-                          <span key={s} className={s <= rv.rating ? "star filled" : "star"}>★</span>
-                        ))}
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="review-header">
+                          <div className="review-meta">
+                            <span className="review-author">{rv.user_name}</span>
+                            <span className="review-date">
+                              {new Date(rv.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="review-stars">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <span key={s} className={s <= rv.rating ? "star filled" : "star"}>★</span>
+                            ))}
+                          </div>
+                        </div>
 
-                    {rv.comment && <p className="review-comment">{rv.comment}</p>}
+                        {rv.comment && <p className="review-comment">{rv.comment}</p>}
 
-                    {/* Edit / Delete — only for own reviews */}
-                    {isAuthenticated && user?.id === rv.user_id && (
-                      <div className="review-actions">
-                        <button
-                          type="button"
-                          className="btn-text"
-                          onClick={() => {
-                            setEditingReview({ id: rv.id, rating: rv.rating, comment: rv.comment || "" });
-                            setReviewError("");
-                            setReviewSuccess("");
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-text btn-text--danger"
-                          onClick={async () => {
-                            if (!window.confirm("Delete this review?")) return;
-                            try {
-                              await api.delete(`/reviews/${rv.id}`);
-                              const nextReviews = reviews.filter((item) => item.id !== rv.id);
-                              dispatch(removeReview(rv.id));
-                              updateRestaurantMetrics(nextReviews);
-                              setReviewSuccess("Review delete queued. Syncing...");
-                              dispatch(setReviewFeedback({ status: "queued", message: "Review delete queued." }));
-                              await syncReviewMutation((items) => !items.some((item) => item.id === rv.id));
-                              setReviewSuccess("Review deleted!");
-                              dispatch(setReviewFeedback({ status: "success", message: "Review deleted!" }));
-                            } catch (err) {
-                              setReviewError(extractApiError(err, "Could not delete review."));
-                              dispatch(setReviewFeedback({ status: "error", message: "Could not delete review." }));
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                        {/* Edit / Delete — only for own reviews */}
+                        {isAuthenticated && user?.id === rv.user_id && (
+                          <div className="review-actions">
+                            <button
+                              type="button"
+                              className="btn-text"
+                              onClick={() => {
+                                setEditingReview({ id: rv.id, rating: rv.rating, comment: rv.comment || "" });
+                                setReviewError("");
+                                setReviewSuccess("");
+                                // No longer scrolling
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-text btn-text--danger"
+                              onClick={async () => {
+                                if (!window.confirm("Delete this review?")) return;
+                                try {
+                                  await api.delete(`/reviews/${rv.id}`);
+                                  const nextReviews = reviews.filter((item) => item.id !== rv.id);
+                                  dispatch(removeReview(rv.id));
+                                  updateRestaurantMetrics(nextReviews);
+                                  setReviewSuccess("Review delete queued. Syncing...");
+                                  dispatch(setReviewFeedback({ status: "queued", message: "Review delete queued." }));
+                                  await syncReviewMutation((items) => !items.some((item) => item.id === rv.id));
+                                  setReviewSuccess("Review deleted!");
+                                  dispatch(setReviewFeedback({ status: "success", message: "Review deleted!" }));
+                                } catch (err) {
+                                  setReviewError(extractApiError(err, "Could not delete review."));
+                                  dispatch(setReviewFeedback({ status: "error", message: "Could not delete review." }));
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
