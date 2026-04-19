@@ -1,11 +1,51 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 from shared.auth.security import hash_password
 from shared.db.collections import OWNERS, RESTAURANTS, REVIEWS, USERS
 from shared.db.counters import get_next_sequence
 from shared.db.mongo import get_mongo_database
+
+
+def _compute_sentiment(reviews: list[dict]) -> tuple[int | None, str | None]:
+    if not reviews:
+        return None, "Not enough data"
+    
+    pos_keywords = {"great", "delicious", "amazing", "love", "excellent", "best", "friendly", "good", "perfect", "favorite"}
+    neg_keywords = {"bad", "terrible", "worst", "slow", "dirty", "rude", "poor", "overpriced", "disappointed", "cold"}
+    
+    total_score = 0
+    for review in reviews:
+        text = (review.get("comment") or "").lower()
+        rating = int(review.get("rating", 3))
+        
+        # Base score from rating (1-5 -> 20-100)
+        score = rating * 20
+        
+        # Adjust based on keywords
+        words = set(re.findall(r'\w+', text))
+        pos_hits = len(words & pos_keywords)
+        neg_hits = len(words & neg_keywords)
+        
+        score += (pos_hits * 5)
+        score -= (neg_hits * 5)
+        
+        # Clamp score for individual review
+        score = max(0, min(100, score))
+        total_score += score
+        
+    avg_score = int(total_score / len(reviews))
+    
+    if avg_score >= 70:
+        label = "Mostly Positive"
+    elif avg_score >= 40:
+        label = "Mixed"
+    else:
+        label = "Mostly Negative"
+        
+    return avg_score, label
 
 
 def _db():
@@ -186,16 +226,18 @@ def get_owner_dashboard(owner_id: int) -> dict:
     per_restaurant = {}
     for review in reviews:
         restaurant_id = int(review["restaurant_id"])
-        bucket = per_restaurant.setdefault(restaurant_id, {"count": 0, "sum": 0})
+        bucket = per_restaurant.setdefault(restaurant_id, {"count": 0, "sum": 0, "reviews": []})
         bucket["count"] += 1
         bucket["sum"] += int(review.get("rating", 0))
+        bucket["reviews"].append(review)
 
     cards = []
     for restaurant in restaurants:
         restaurant_id = int(restaurant["_id"])
-        metrics = per_restaurant.get(restaurant_id, {"count": 0, "sum": 0})
+        metrics = per_restaurant.get(restaurant_id, {"count": 0, "sum": 0, "reviews": []})
         review_count = metrics["count"]
         restaurant_avg = round(metrics["sum"] / review_count, 2) if review_count else 0.0
+        sentiment_score, sentiment_label = _compute_sentiment(metrics["reviews"])
         address = restaurant.get("address", {})
         cards.append(
             {
@@ -207,6 +249,8 @@ def get_owner_dashboard(owner_id: int) -> dict:
                 "pricing_tier": restaurant.get("pricing_tier"),
                 "avg_rating": restaurant_avg,
                 "review_count": review_count,
+                "sentiment_score": sentiment_score,
+                "sentiment_label": sentiment_label,
             }
         )
 
