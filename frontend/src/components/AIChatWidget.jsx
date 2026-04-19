@@ -307,14 +307,29 @@ export default function AIChatWidget() {
                   <div className="ai-suggestion-list">
                     {message.suggestions.map((restaurant) => (
                       <button
-                        key={`${message.id}-${restaurant.id}`}
+                        key={`${message.id}-${restaurant.id || restaurant.name}`}
                         type="button"
-                        className="ai-suggestion-card"
-                        onClick={() => navigate(`/restaurant/${restaurant.id}`)}
+                        className={`ai-suggestion-card ${restaurant.is_external ? "external" : ""}`}
+                        onClick={() => {
+                          if (restaurant.is_external && restaurant.external_url) {
+                            window.open(restaurant.external_url, "_blank", "noopener,noreferrer");
+                          } else if (restaurant.id) {
+                            navigate(`/restaurant/${restaurant.id}`);
+                          }
+                        }}
                       >
-                        <span className="ai-suggestion-name">{restaurant.name}</span>
+                        <div className="ai-suggestion-header">
+                          <span className="ai-suggestion-name">{restaurant.name}</span>
+                          {restaurant.is_external && (
+                            <span className="ai-external-badge">External</span>
+                          )}
+                        </div>
                         <span className="ai-suggestion-meta">
-                          {[restaurant.cuisine_type, restaurant.pricing_tier, restaurant.average_rating ? `${restaurant.average_rating.toFixed(1)}★` : null]
+                          {[
+                            restaurant.cuisine_type,
+                            restaurant.pricing_tier,
+                            restaurant.average_rating ? `${restaurant.average_rating.toFixed(1)}★` : null,
+                          ]
                             .filter(Boolean)
                             .join(" • ")}
                         </span>

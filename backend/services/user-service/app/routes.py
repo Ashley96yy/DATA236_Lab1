@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import re
+import json
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi import File, UploadFile
@@ -24,6 +25,7 @@ from app.repository import (
     update_user_profile,
     update_preferences,
 )
+from app.ai_utils import get_tavily_client, get_gemini_client
 from app.schemas import (
     AiAssistantChatRequest,
     AiAssistantChatResponse,
@@ -102,12 +104,25 @@ def _extract_query_preferences(message: str, restaurants: list[dict], stored_pre
     cuisines = {r.get("cuisine_type", "").strip().lower() for r in restaurants if r.get("cuisine_type")}
     matched_cuisine = next((c for c in sorted(cuisines | COMMON_CUISINES, key=len, reverse=True) if c and c in lower), None)
 
+    # 1. Try to find city from DB (exact match in message)
     cities = {
         (r.get("address", {}) or {}).get("city", "").strip()
         for r in restaurants
         if (r.get("address", {}) or {}).get("city")
     }
     matched_city = next((city for city in cities if city and city.lower() in lower), None)
+    
+    # 2. Try to find location using "in {Location}" or "near {Location}" pattern
+    explicit_location = None
+    loc_match = re.search(r"\b(?:in|near|around)\s+([a-zA-Z\s,]+)", message, re.I)
+    if loc_match:
+        explicit_location = loc_match.group(1).strip().title()
+    
+    # If explicit location is mentioned, it takes priority
+    if explicit_location:
+        matched_city = explicit_location
+    
+    # Only fallback to preferences if NO location was mentioned in the query
     if matched_city is None:
         preferred_locations = stored_preferences.get("preferred_locations") or []
         if preferred_locations:
@@ -146,8 +161,27 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
             2,
         ) if review_count else 0.0
 
-        score = average_rating * 20 + min(review_count, 20)
+        # Base score starts at 0
+        score = 0
         reasons = []
+
+        # If location was explicitly requested, we MUST match it or the score stays low
+        requested_location = preferences.get("city")
+        has_location_mismatch = False
+        
+        if requested_location:
+            if city.lower() == requested_location.lower():
+                score += 100
+                reasons.append(f"In your requested area ({city})")
+            else:
+                has_location_mismatch = True
+        
+        # If there's a location mismatch, we drastically limit the score
+        if has_location_mismatch:
+            score = -100 # Penalty for wrong location
+        else:
+            # Only add rating bonus if it's the right location or no location requested
+            score += average_rating * 10 + min(review_count, 10)
 
         if preferences["cuisine"] and cuisine.lower() == preferences["cuisine"]:
             score += 60
@@ -159,7 +193,7 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
         if preferences["city"] and city.lower() == preferences["city"].lower():
             score += 40
             reasons.append(f"In your requested area ({city})")
-        elif city.lower() in preferred_locations:
+        elif city.lower() in preferred_locations and not requested_location:
             score += 20
             reasons.append(f"In one of your preferred locations ({city})")
 
@@ -189,7 +223,7 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
     return ranked[:3]
 
 
-def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest) -> AiAssistantChatResponse:
+async def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest) -> AiAssistantChatResponse:
     restaurants = list_restaurants_for_ai()
     stored_preferences = get_preferences(int(current_user["_id"]))
     effective_message = payload.message
@@ -208,40 +242,41 @@ def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest) -> A
     extracted = _extract_query_preferences(effective_message, restaurants, stored_preferences, current_user)
     suggestions = _rank_restaurants(restaurants, extracted, stored_preferences)
 
-    if not suggestions:
-        return AiAssistantChatResponse(
-            reply="I could not find a strong match yet. Try adding a cuisine, budget, or city.",
-            suggested_restaurants=[],
+    # Decisions: Use DB or Tavily?
+    # We use Tavily if:
+    # 1. DB suggestions are empty
+    # 2. Top suggestion score is very low (e.g. < 40)
+    # 3. User query seems to be about a location we don't cover (detected via extracted city mismatch)
+    
+    use_tavily = False
+    if not suggestions or suggestions[0]["score"] < 50:
+        use_tavily = True
+
+    external_results = []
+    if use_tavily:
+        tavily = get_tavily_client()
+        external_results = await tavily.search_restaurants(payload.message)
+
+    # Use Gemini to generate a friendly response and extract real restaurants
+    gemini = get_gemini_client()
+    
+    if not use_tavily:
+        # For internal results, we already have structured data
+        context = "Internal Database Results:\n" + "\n".join([
+            f"- {s['name']} ({s['cuisine_type']}, {s['pricing_tier']}): {s['reason']}"
+            for s in suggestions
+        ])
+        
+        system_prompt = (
+            "You are a helpful and friendly local restaurant expert. "
+            "Format your response in a friendly chat style. "
+            "Explain why these restaurants match the user's needs based on our internal database. "
+            "Do not use debug labels or mention internal scores. "
         )
-
-    if is_hours_followup:
-        top = suggestions[0]
-        return AiAssistantChatResponse(
-            reply=f"{top['name']} hours: {_stringify_hours(top['hours'])}",
-            suggested_restaurants=[
-                AiSuggestedRestaurant(
-                    id=top["id"],
-                    name=top["name"],
-                    cuisine_type=top["cuisine_type"],
-                    pricing_tier=top["pricing_tier"],
-                    average_rating=top["average_rating"],
-                    reason="Open-hours details for your selected restaurant",
-                )
-            ],
-        )
-
-    reply_lines = ["Here are top matches based on your preferences and query:"]
-    for index, item in enumerate(suggestions, start=1):
-        meta_bits = [item["name"]]
-        if item["average_rating"]:
-            meta_bits.append(f"{item['average_rating']:.1f}★")
-        if item["pricing_tier"]:
-            meta_bits.append(item["pricing_tier"])
-        reply_lines.append(f"{index}. {' '.join(meta_bits)} - {item['reason']}")
-
-    return AiAssistantChatResponse(
-        reply="\n".join(reply_lines),
-        suggested_restaurants=[
+        user_prompt = f"User Query: {payload.message}\n\nContext:\n{context}\n\nPlease provide a friendly response."
+        ai_reply = await gemini.generate_response(system_prompt, user_prompt)
+        
+        suggested_restaurants = [
             AiSuggestedRestaurant(
                 id=item["id"],
                 name=item["name"],
@@ -249,9 +284,73 @@ def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest) -> A
                 pricing_tier=item["pricing_tier"],
                 average_rating=item["average_rating"],
                 reason=item["reason"],
+                is_external=False
             )
             for item in suggestions
-        ],
+        ]
+    else:
+        # For Tavily results, we need Gemini to filter noise and extract actual restaurant details
+        context = "Raw Web Search Results:\n" + "\n".join([
+            f"Title: {r['name']}\nSnippet: {r['description']}\nURL: {r['url']}\n---"
+            for r in external_results
+        ])
+        
+        system_prompt = (
+            "You are a helpful local restaurant expert. I will provide you with raw search results. "
+            "Your task is to:\n"
+            "1. Identify 3-5 SPECIFIC restaurants mentioned in the results.\n"
+            "2. Ignore blog posts, 'top 10' lists, or aggregator sites unless they mention a specific name you can extract details for.\n"
+            "3. For each restaurant, provide: Name, Cuisine (if found), and a 1-2 sentence description.\n"
+            "4. Return ONLY a valid JSON object with these keys:\n"
+            "   - 'reply': A conversational, friendly chat response recommending these restaurants.\n"
+            "   - 'restaurants': A list of objects with keys 'name', 'cuisine', 'description', 'url'.\n"
+        )
+        
+        user_prompt = f"User Query: {payload.message}\n\n{context}"
+        
+        raw_ai_response = await gemini.generate_response(system_prompt, user_prompt)
+        
+        # Parse JSON from Gemini
+        try:
+            # Strip potential markdown code blocks
+            clean_json = raw_ai_response.strip()
+            if clean_json.startswith("```json"):
+                clean_json = clean_json[7:-3].strip()
+            elif clean_json.startswith("```"):
+                clean_json = clean_json[3:-3].strip()
+                
+            data = json.loads(clean_json)
+            ai_reply = data.get("reply", "Here are some recommendations I found for you.")
+            extracted_list = data.get("restaurants", [])
+            
+            suggested_restaurants = [
+                AiSuggestedRestaurant(
+                    id=None,
+                    name=r.get("name", "Unknown"),
+                    cuisine_type=r.get("cuisine"),
+                    reason=r.get("description"),
+                    external_url=r.get("url"),
+                    is_external=True
+                )
+                for r in extracted_list[:5]
+            ]
+        except Exception as e:
+            print(f"Failed to parse Gemini JSON: {e}\nRaw: {raw_ai_response}")
+            ai_reply = "I found some interesting places for you! Here are the top results from the web."
+            suggested_restaurants = [
+                AiSuggestedRestaurant(
+                    id=None,
+                    name=item["name"],
+                    reason="Recommendation found via web search",
+                    external_url=item["url"],
+                    is_external=True
+                )
+                for item in external_results[:3]
+            ]
+
+    return AiAssistantChatResponse(
+        reply=ai_reply,
+        suggested_restaurants=suggested_restaurants,
     )
 
 
@@ -378,8 +477,8 @@ def user_history(current_user: dict = Depends(get_current_user)) -> UserHistoryR
 
 
 @router.post("/ai-assistant/chat", response_model=AiAssistantChatResponse)
-def chat_with_ai(
+async def chat_with_ai(
     payload: AiAssistantChatRequest,
     current_user: dict = Depends(get_current_user),
 ) -> AiAssistantChatResponse:
-    return _build_ai_response(current_user, payload)
+    return await _build_ai_response(current_user, payload)

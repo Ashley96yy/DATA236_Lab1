@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api, { extractApiError } from "../services/api";
+import { CUISINE_OPTIONS } from "../constants/cuisine";
 
 const PRICING_TIERS = ["$", "$$", "$$$", "$$$$"];
 const DEFAULT_AMENITIES = [
@@ -280,13 +281,16 @@ export default function AddRestaurantPage() {
               </label>
               <label>
                 <span className="field-label">Cuisine Type</span>
-                <input
+                <select
                   id="ar-cuisine"
-                  type="text"
                   value={form.cuisine_type}
                   onChange={(e) => set("cuisine_type", e.target.value)}
-                  placeholder="Italian, Thai, Mexican…"
-                />
+                >
+                  <option value="">— Select —</option>
+                  {CUISINE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span className="field-label">Pricing Tier</span>

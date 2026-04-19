@@ -148,7 +148,7 @@ export default function DashboardPage() {
               {/* My Reviews */}
               <section className="history-section">
                 <h2 className="history-heading">My Reviews</h2>
-                {history.my_reviews.length === 0 ? (
+                {!history.my_reviews || history.my_reviews.length === 0 ? (
                   <p className="muted">You haven't written any reviews yet.</p>
                 ) : (
                   <div className="history-review-list">
@@ -166,7 +166,9 @@ export default function DashboardPage() {
                           </span>
                           <StarDisplay rating={rv.rating} />
                           <span className="history-review-date">
-                            {new Date(rv.created_at).toLocaleDateString()}
+                            {rv.created_at && !isNaN(new Date(rv.created_at).getTime())
+                              ? new Date(rv.created_at).toLocaleDateString()
+                              : "Date unavailable"}
                           </span>
                         </div>
                         {rv.comment && (
@@ -181,7 +183,7 @@ export default function DashboardPage() {
               {/* Restaurants I Added */}
               <section className="history-section">
                 <h2 className="history-heading">Restaurants I Added</h2>
-                {history.my_restaurants_added.length === 0 ? (
+                {!history.my_restaurants_added || history.my_restaurants_added.length === 0 ? (
                   <p className="muted">
                     You haven't added any restaurants yet.{" "}
                     <Link to="/add-restaurant">Add one now</Link>

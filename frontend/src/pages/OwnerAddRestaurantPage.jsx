@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { extractApiError, ownerApi, ownerMgmtApi } from "../services/api";
+import { CUISINE_OPTIONS } from "../constants/cuisine";
 
 const PRICING_TIERS = ["$", "$$", "$$$", "$$$$"];
 const DEFAULT_AMENITIES = [
@@ -111,10 +112,27 @@ export default function OwnerAddRestaurantPage() {
     setSubmitting(true);
     try {
       const response = await ownerMgmtApi.createRestaurant(body);
-      setCreatedRestaurant(response.data);
+      const newRestaurant = response.data;
+
+      // Automatically upload photos if any were selected
+      if (photoFiles.length > 0) {
+        setUploading(true);
+        const formData = new FormData();
+        photoFiles.forEach((f) => formData.append("files", f));
+        try {
+          await ownerApi.post(`/restaurants/${newRestaurant.id}/photos`, formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } catch (err) {
+          console.error("Auto-upload failed:", err);
+          // We don't block the redirect, but maybe we should show an alert?
+          // For now, let's just proceed as the restaurant was created.
+        }
+      }
+
+      navigate(`/restaurant/${newRestaurant.id}`);
     } catch (err) {
       setFormError(extractApiError(err, "Failed to create restaurant."));
-    } finally {
       setSubmitting(false);
     }
   }
@@ -139,113 +157,15 @@ export default function OwnerAddRestaurantPage() {
     setPhotoPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function handlePhotoUpload() {
-    if (!createdRestaurant || photoFiles.length === 0) return;
-    setPhotoError("");
-    setPhotoSuccess("");
-    setUploading(true);
-
-    const formData = new FormData();
-    photoFiles.forEach((file) => formData.append("files", file));
-
-    try {
-      await ownerApi.post(`/restaurants/${createdRestaurant.id}/photos`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setPhotoSuccess(`${photoFiles.length} photo(s) uploaded successfully!`);
-      setPhotoFiles([]);
-      setPhotoPreviewUrls([]);
-    } catch (err) {
-      setPhotoError(extractApiError(err, "Photo upload failed."));
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  if (createdRestaurant) {
-    return (
-      <div className="add-restaurant-page">
-        <div className="page-card">
-          <div className="create-success-header">
-            <span className="create-success-icon">🏪</span>
-            <div>
-              <h1 className="auth-title">"{createdRestaurant.name}" is now claimed by you</h1>
-              <p className="muted">Upload photos now or continue to the restaurant page.</p>
-            </div>
-          </div>
-
-          <section className="photo-upload-section">
-            <h2 className="section-heading">Upload Photos (up to 5)</h2>
-
-            {photoError && <div className="alert alert--error">{photoError}</div>}
-            {photoSuccess && <div className="alert alert--success">{photoSuccess}</div>}
-
-            <div className="photo-preview-grid">
-              {photoPreviewUrls.map((url, index) => (
-                <div key={index} className="photo-thumb-wrap">
-                  <img src={url} alt={`Preview ${index + 1}`} className="photo-thumb" />
-                  <button
-                    type="button"
-                    className="photo-remove-btn"
-                    onClick={() => removePhoto(index)}
-                    aria-label="Remove photo"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {photoFiles.length < 5 && (
-                <button
-                  type="button"
-                  className="photo-add-btn"
-                  onClick={() => photoInputRef.current?.click()}
-                >
-                  + Add Photo
-                </button>
-              )}
-            </div>
-
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              style={{ display: "none" }}
-              onChange={handlePhotoSelect}
-            />
-
-            <div className="create-actions">
-              {photoFiles.length > 0 && (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={handlePhotoUpload}
-                  disabled={uploading}
-                >
-                  {uploading ? "Uploading..." : `Upload ${photoFiles.length} Photo(s)`}
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => navigate(`/restaurant/${createdRestaurant.id}`)}
-              >
-                {photoFiles.length === 0 ? "View Restaurant Page →" : "Skip & View Page →"}
-              </button>
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="add-restaurant-page">
-      <div className="page-card">
-        <h1 className="auth-title">Create Owner Restaurant Listing</h1>
-        <p className="muted">Post a restaurant directly under your owner account.</p>
+    <div className="owner-page">
+      <div className="owner-page-header">
+        <h1 className="owner-page-title">Post a Restaurant</h1>
+      </div>
 
+      <div className="page-card">
         {formError && <div className="alert alert--error">{formError}</div>}
+        {photoError && <div className="alert alert--error">{photoError}</div>}
 
         <form className="add-restaurant-form" onSubmit={handleSubmit} noValidate>
           <fieldset className="form-fieldset">
@@ -264,12 +184,15 @@ export default function OwnerAddRestaurantPage() {
 
               <label>
                 <span className="field-label">Cuisine Type</span>
-                <input
-                  type="text"
+                <select
                   value={form.cuisine_type}
                   onChange={(event) => set("cuisine_type", event.target.value)}
-                  placeholder="Italian, Thai, Mexican..."
-                />
+                >
+                  <option value="">Select cuisine</option>
+                  {CUISINE_OPTIONS.map((cuisine) => (
+                    <option key={cuisine} value={cuisine}>{cuisine}</option>
+                  ))}
+                </select>
               </label>
 
               <label>
@@ -392,9 +315,48 @@ export default function OwnerAddRestaurantPage() {
             )}
           </fieldset>
 
+          {/* ── Photos ── */}
+          <fieldset className="form-fieldset">
+            <legend className="form-legend">Restaurant Photos</legend>
+            <p className="muted" style={{ marginBottom: 12 }}>
+              Add up to 5 photos. If you don't upload any, a default image based on your cuisine choice will be used.
+            </p>
+            <div className="photo-preview-grid">
+              {photoPreviewUrls.map((url, i) => (
+                <div key={i} className="photo-thumb-wrap">
+                  <img src={url} alt={`Preview ${i + 1}`} className="photo-thumb" />
+                  <button type="button" className="photo-remove-btn" onClick={() => removePhoto(i)}>
+                    ×
+                  </button>
+                </div>
+              ))}
+              {photoFiles.length < 5 && (
+                <button
+                  type="button"
+                  className="photo-add-btn"
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  + Add Photo
+                </button>
+              )}
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              style={{ display: "none" }}
+              onChange={handlePhotoSelect}
+            />
+          </fieldset>
+
           <div className="form-actions">
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Creating..." : "Create Restaurant"}
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={submitting}
+            >
+              {submitting ? (uploading ? "Uploading Photos..." : "Creating...") : "Create Restaurant"}
             </button>
             <button
               type="button"
