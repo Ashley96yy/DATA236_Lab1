@@ -42,6 +42,8 @@ class ClaimedRestaurantCard(BaseModel):
     pricing_tier: str | None = None
     avg_rating: float = 0.0
     review_count: int = 0
+    sentiment_score: int | None = None
+    sentiment_label: str | None = None
 
 
 class OwnerDashboardResponse(BaseModel):

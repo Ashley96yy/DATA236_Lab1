@@ -1386,12 +1386,45 @@ button:disabled {
 }
 .owner-rc-tier {
   display: inline-block;
-  font-size: 0.78rem;
-  background: #eef4ff;
-  color: #2563b0;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--bg-secondary);
   border-radius: 4px;
-  padding: 1px 7px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.owner-rc-sentiment {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.sentiment-badge {
   font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.sentiment-mostly-positive {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.sentiment-mixed {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #eab308;
+}
+
+.sentiment-mostly-negative {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.sentiment-not-enough-data {
+  background-color: var(--bg-secondary);
+  color: var(--text-muted);
 }
 .owner-rc-actions {
   display: flex;

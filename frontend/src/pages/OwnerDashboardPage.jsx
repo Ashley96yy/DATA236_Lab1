@@ -46,6 +46,13 @@ function OwnerRestaurantCard({ restaurant, onEdit, onReviews }) {
         ) : (
           <p className="owner-rc-no-reviews">No reviews yet</p>
         )}
+        {restaurant.sentiment_label && (
+          <p className="owner-rc-sentiment">
+            Sentiment: <span className={`sentiment-badge sentiment-${restaurant.sentiment_label.toLowerCase().replace(' ', '-')}`}>
+              {restaurant.sentiment_label} {restaurant.sentiment_score !== null && `(${restaurant.sentiment_score}/100)`}
+            </span>
+          </p>
+        )}
         {restaurant.pricing_tier && (
           <span className="owner-rc-tier">{restaurant.pricing_tier}</span>
         )}
