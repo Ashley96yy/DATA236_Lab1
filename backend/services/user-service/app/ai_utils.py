@@ -16,7 +16,7 @@ class TavilyClient:
             "api_key": self.api_key,
             "query": f"restaurants recommendations for {query}",
             "search_depth": "basic",
-            "max_results": 5
+            "max_results": 10
         }
         
         async with httpx.AsyncClient() as client:
@@ -25,14 +25,44 @@ class TavilyClient:
                 response.raise_for_status()
                 results = response.json().get("results", [])
                 
+                fetched_count = len(results)
+                
+                # Filtering logic
+                whitelist = {
+                    "restaurant", "cafe", "food", "dining", "menu", "cuisine", "eat", "drink", "bistro", 
+                    "grill", "bar", "pub", "guide", "review", "tripadvisor", "yelp", "zomato", "maps",
+                    "sushi", "pizza", "burger", "steak", "pasta", "bakery", "coffee", "breakfast", "lunch", "dinner",
+                    "spots", "places", "tasty", "delicious", "eater", "michelin", "brunch", "local", "kitchen"
+                }
+                blacklist = {"python", "code", "tutorial", "stack overflow", "programming", "github", "npm", "install", "build", "developer", "api", "endpoint", "documentation"}
+                
                 restaurants = []
                 for res in results:
-                    restaurants.append({
-                        "name": res.get("title", "Unknown Restaurant"),
-                        "url": res.get("url"),
-                        "description": res.get("content", ""),
-                    })
-                return restaurants
+                    title = res.get("title", "").lower()
+                    description = res.get("content", "").lower()
+                    url = res.get("url", "").lower()
+                    
+                    text_to_check = f"{title} {description} {url}"
+                    
+                    # Check blacklist first
+                    if any(word in text_to_check for word in blacklist):
+                        continue
+                        
+                    # Check whitelist
+                    if any(word in text_to_check for word in whitelist):
+                        restaurants.append({
+                            "name": res.get("title", "Unknown Restaurant"),
+                            "url": res.get("url"),
+                            "description": res.get("content", ""),
+                        })
+                
+                final_count = len(restaurants)
+                filtered_count = fetched_count - final_count
+                
+                print(f"Tavily Fallback Stats: Fetched={fetched_count}, Filtered={filtered_count}, Passed={final_count}")
+                
+                # Limit to top 5
+                return restaurants[:5]
             except Exception as e:
                 print(f"Tavily search failed: {e}")
                 return []

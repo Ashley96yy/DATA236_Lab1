@@ -288,7 +288,7 @@ async def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest
             )
             for item in suggestions
         ]
-    else:
+    elif external_results:
         # For Tavily results, we need Gemini to filter noise and extract actual restaurant details
         context = "Raw Web Search Results:\n" + "\n".join([
             f"Title: {r['name']}\nSnippet: {r['description']}\nURL: {r['url']}\n---"
@@ -347,6 +347,12 @@ async def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest
                 )
                 for item in external_results[:3]
             ]
+    else:
+        # Fallback if no valid external results remain after filtering
+        return AiAssistantChatResponse(
+            reply="I couldn't find reliable restaurant recommendations for that location. Please try refining your query by adding a specific city or cuisine.",
+            suggested_restaurants=[]
+        )
 
     return AiAssistantChatResponse(
         reply=ai_reply,
