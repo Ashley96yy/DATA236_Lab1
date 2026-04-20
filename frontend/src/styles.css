@@ -479,6 +479,35 @@ button:disabled {
 .btn-logout:hover { background: #f0f4fa; }
 .nav-user-name { font-weight: 600; color: #1c2636; }
 
+/* ── Navbar Avatar ── */
+.nav-avatar-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+.nav-avatar-link:hover {
+  opacity: 0.85;
+}
+.nav-avatar-img, .nav-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e0e9f5;
+  flex-shrink: 0;
+}
+.nav-avatar-placeholder {
+  background: #f2f2f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a8a8a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 /* ── Alerts ── */
 .alert {
   border-radius: 8px;
@@ -1854,6 +1883,29 @@ button:disabled {
   font-size: 0.78rem;
   color: #334155;
   line-height: 1.35;
+}
+
+.ai-suggestion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ai-external-badge {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid #e2e8f0;
+}
+
+.ai-suggestion-card.external:hover {
+  border-color: #cbd5e1;
+  background: #fdfdfd;
 }
 
 .ai-widget-quick-prompts {

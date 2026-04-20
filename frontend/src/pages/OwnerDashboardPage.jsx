@@ -72,19 +72,38 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      setLoading(true);
-      setError("");
+
+    const fetchDashboard = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
+      if (!isBackground) setError("");
       try {
         const resp = await ownerMgmtApi.dashboard();
         if (active) setData(resp.data);
       } catch (err) {
-        if (active) setError(extractApiError(err, "Failed to load dashboard."));
+        if (active && !isBackground) {
+          setError(extractApiError(err, "Failed to load dashboard."));
+        }
       } finally {
-        if (active) setLoading(false);
+        if (active && !isBackground) setLoading(false);
       }
-    })();
-    return () => { active = false; };
+    };
+
+    fetchDashboard(false);
+
+    const intervalId = setInterval(() => {
+      fetchDashboard(true);
+    }, 5000);
+
+    const handleFocus = () => {
+      fetchDashboard(true);
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   if (loading) return <div className="page-status">Loading dashboard...</div>;

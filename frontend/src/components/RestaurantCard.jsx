@@ -1,4 +1,5 @@
 import FavoriteButton from "./FavoriteButton";
+import { getFallbackRestaurantImage } from "../utils/imageFallback";
 
 function StarRating({ rating }) {
   const stars = Math.round(rating);
@@ -33,13 +34,7 @@ export default function RestaurantCard({ restaurant, onClick, showFav = true }) 
       aria-label={`View details for ${restaurant.name}`}
     >
       <div className="rc-photo">
-        {restaurant.cover_photo_url ? (
-          <img src={restaurant.cover_photo_url} alt={restaurant.name} />
-        ) : (
-          <div className="rc-photo-placeholder">
-            <span>🍴</span>
-          </div>
-        )}
+        <img src={restaurant.cover_photo_url || getFallbackRestaurantImage(restaurant.cuisine_type, restaurant.amenities)} alt={restaurant.name} />
         {restaurant.pricing_tier && (
           <span className="rc-badge">{restaurant.pricing_tier}</span>
         )}

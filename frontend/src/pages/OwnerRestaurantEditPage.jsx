@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import api, { extractApiError, ownerMgmtApi } from "../services/api";
+import api, { extractApiError, ownerApi, ownerMgmtApi } from "../services/api";
+import { CUISINE_OPTIONS } from "../constants/cuisine";
 
 const PRICING_TIERS = ["$", "$$", "$$$", "$$$$"];
 
@@ -51,6 +52,15 @@ export default function OwnerRestaurantEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [restaurantData, setRestaurantData] = useState(null);
+
+  // Photo states
+  const photoInputRef = useRef(null);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [photoPreviewUrls, setPhotoPreviewUrls] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoSuccess, setPhotoSuccess] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -59,7 +69,10 @@ export default function OwnerRestaurantEditPage() {
       setError("");
       try {
         const resp = await api.get(`/restaurants/${id}`);
-        if (active) setForm(restaurantToForm(resp.data));
+        if (active) {
+          setForm(restaurantToForm(resp.data));
+          setRestaurantData(resp.data);
+        }
       } catch (err) {
         if (active) setError(extractApiError(err, "Failed to load restaurant."));
       } finally {
@@ -129,6 +142,69 @@ export default function OwnerRestaurantEditPage() {
     }
   };
 
+  const handlePhotoSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    const total = (restaurantData?.photos?.length || 0) + photoFiles.length + files.length;
+    if (total > 5) {
+      setPhotoError("Maximum 5 photos allowed per restaurant.");
+      return;
+    }
+    setPhotoError("");
+    setPhotoFiles((prev) => [...prev, ...files]);
+    const newPreviews = files.map((f) => URL.createObjectURL(f));
+    setPhotoPreviewUrls((prev) => [...prev, ...newPreviews]);
+    e.target.value = "";
+  };
+
+  const removePhotoFile = (index) => {
+    URL.revokeObjectURL(photoPreviewUrls[index]);
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePhotoUpload = async () => {
+    if (photoFiles.length === 0) return;
+    setPhotoError("");
+    setPhotoSuccess("");
+    setUploading(true);
+
+    const formData = new FormData();
+    photoFiles.forEach((f) => formData.append("files", f));
+
+    try {
+      await ownerApi.post(`/restaurants/${id}/photos`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setPhotoSuccess(`${photoFiles.length} photo(s) uploaded successfully!`);
+      setPhotoFiles([]);
+      setPhotoPreviewUrls([]);
+      // Reload restaurant to show new photos
+      const resp = await api.get(`/restaurants/${id}`);
+      setRestaurantData(resp.data);
+      setForm(restaurantToForm(resp.data));
+    } catch (err) {
+      setPhotoError(extractApiError(err, "Photo upload failed."));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = async (photoId) => {
+    if (!window.confirm("Delete this photo?")) return;
+    setPhotoError("");
+    setPhotoSuccess("");
+    try {
+      await ownerApi.delete(`/restaurants/${id}/photos/${photoId}`);
+      setPhotoSuccess("Photo deleted.");
+      // Reload restaurant
+      const resp = await api.get(`/restaurants/${id}`);
+      setRestaurantData(resp.data);
+      setForm(restaurantToForm(resp.data));
+    } catch (err) {
+      setPhotoError(extractApiError(err, "Failed to delete photo."));
+    }
+  };
+
   if (loading) return <div className="page-status">Loading restaurant...</div>;
 
   return (
@@ -147,6 +223,75 @@ export default function OwnerRestaurantEditPage() {
       {error && <div className="alert alert--error">{error}</div>}
       {success && <div className="alert alert--success">{success}</div>}
 
+      <section className="page-card" style={{ marginBottom: 24 }}>
+        <h2 className="section-heading">Restaurant Photos</h2>
+        {photoError && <div className="alert alert--error">{photoError}</div>}
+        {photoSuccess && <div className="alert alert--success">{photoSuccess}</div>}
+
+        <div className="photo-preview-grid">
+          {/* Existing photos */}
+          {restaurantData?.photos?.map((p) => (
+            <div key={p.id} className="photo-thumb-wrap">
+              <img src={p.photo_url} alt="Restaurant" className="photo-thumb" />
+              <button
+                type="button"
+                className="photo-remove-btn"
+                onClick={() => handleDeletePhoto(p.id)}
+                title="Delete photo"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {/* New files pending upload */}
+          {photoPreviewUrls.map((url, i) => (
+            <div key={`new-${i}`} className="photo-thumb-wrap" style={{ opacity: 0.7 }}>
+              <img src={url} alt="New upload" className="photo-thumb" />
+              <button
+                type="button"
+                className="photo-remove-btn"
+                onClick={() => removePhotoFile(i)}
+                title="Remove from queue"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {(restaurantData?.photos?.length || 0) + photoFiles.length < 5 && (
+            <button
+              type="button"
+              className="photo-add-btn"
+              onClick={() => photoInputRef.current?.click()}
+            >
+              + Add Photo
+            </button>
+          )}
+        </div>
+
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          style={{ display: "none" }}
+          onChange={handlePhotoSelect}
+        />
+
+        {photoFiles.length > 0 && (
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ marginTop: 16 }}
+            onClick={handlePhotoUpload}
+            disabled={uploading}
+          >
+            {uploading ? "Uploading..." : `Upload ${photoFiles.length} New Photo(s)`}
+          </button>
+        )}
+      </section>
+
       <form onSubmit={handleSubmit} className="form-grid two-col owner-edit-form">
         {/* Basic info */}
         <label className="full-row">
@@ -162,13 +307,16 @@ export default function OwnerRestaurantEditPage() {
         </label>
         <label>
           Cuisine Type
-          <input
-            type="text"
+          <select
             name="cuisine_type"
             value={form.cuisine_type}
             onChange={handleChange}
-            maxLength={100}
-          />
+          >
+            <option value="">— Select —</option>
+            {CUISINE_OPTIONS.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </label>
         <label>
           Pricing Tier

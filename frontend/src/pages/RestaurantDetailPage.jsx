@@ -19,6 +19,7 @@ import {
   setReviewFeedback,
   upsertReview,
 } from "../store/slices/reviewSlice";
+import { getFallbackRestaurantImage } from "../utils/imageFallback";
 
 const DAY_ORDER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -306,7 +307,11 @@ export default function RestaurantDetailPage() {
   }
 
   const r = restaurant;
-  const heroPhoto = r.photos?.[0]?.photo_url;
+  const heroPhoto = r.photos?.[0]?.photo_url || getFallbackRestaurantImage(r.cuisine_type, r.amenities);
+  const hasUserReviewed = isAuthenticated && user && reviews.some((rv) => rv.user_id === user.id);
+  const displayReviews = user?.id
+    ? [...reviews.filter((rv) => rv.user_id === user.id), ...reviews.filter((rv) => rv.user_id !== user.id)]
+    : reviews;
 
   const hoursEntries = r.hours_json
     ? DAY_ORDER.filter((d) => r.hours_json[d]).map((d) => ({ day: d, value: r.hours_json[d] }))
@@ -458,7 +463,7 @@ export default function RestaurantDetailPage() {
             )}
 
             {/* Write review form */}
-            {isAuthenticated && !editingReview && (
+            {isAuthenticated && !editingReview && !hasUserReviewed && (
               <div className="review-form-card" ref={editFormRef}>
                 <h3 className="review-form-title">Write a Review</h3>
 
@@ -564,7 +569,7 @@ export default function RestaurantDetailPage() {
               </p>
             ) : (
               <div className="review-list">
-                {reviews.map((rv) => (
+                {displayReviews.map((rv) => (
                   <div key={rv.id} className="review-card">
                     {editingReview?.id === rv.id ? (
                       <div className="review-form-inline">
@@ -659,7 +664,22 @@ export default function RestaurantDetailPage() {
                       <>
                         <div className="review-header">
                           <div className="review-meta">
-                            <span className="review-author">{rv.user_name}</span>
+                            <span className="review-author">
+                              {rv.user_name}
+                              {isAuthenticated && user?.id === rv.user_id && (
+                                <span
+                                  className="review-own-badge"
+                                  style={{
+                                    color: "var(--primary-color)",
+                                    fontSize: "0.85em",
+                                    marginLeft: 6,
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  (Your Review)
+                                </span>
+                              )}
+                            </span>
                             <span className="review-date">
                               {new Date(rv.created_at).toLocaleDateString()}
                             </span>

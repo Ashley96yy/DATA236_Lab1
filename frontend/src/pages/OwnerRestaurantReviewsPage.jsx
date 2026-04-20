@@ -25,24 +25,43 @@ export default function OwnerRestaurantReviewsPage() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      setLoading(true);
-      setError("");
+
+    const fetchReviews = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
+      if (!isBackground) setError("");
       try {
         const resp = await ownerMgmtApi.getRestaurantReviews(id, page, LIMIT);
         if (active) setData(resp.data);
       } catch (err) {
         if (!active) return;
-        if (err?.response?.status === 403) {
-          setError("You don't own this restaurant.");
-        } else {
-          setError(extractApiError(err, "Failed to load reviews."));
+        if (!isBackground) {
+          if (err?.response?.status === 403) {
+            setError("You don't own this restaurant.");
+          } else {
+            setError(extractApiError(err, "Failed to load reviews."));
+          }
         }
       } finally {
-        if (active) setLoading(false);
+        if (active && !isBackground) setLoading(false);
       }
-    })();
-    return () => { active = false; };
+    };
+
+    fetchReviews(false);
+
+    const intervalId = setInterval(() => {
+      fetchReviews(true);
+    }, 5000);
+
+    const handleFocus = () => {
+      fetchReviews(true);
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [id, page]);
 
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 1;

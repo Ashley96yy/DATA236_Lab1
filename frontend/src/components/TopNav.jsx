@@ -25,30 +25,49 @@ export default function TopNav() {
         <ProjectLogo to="/" compact />
 
         <nav className="top-links">
-          <Link to="/">Explore</Link>
+          {!isOwnerAuthenticated && <Link to="/">Explore</Link>}
 
           {/* User links */}
-          {isAuthenticated && <Link to="/add-restaurant">+ Add Restaurant</Link>}
-          {isAuthenticated && <Link to="/dashboard">Dashboard</Link>}
-          {isAuthenticated && <Link to="/profile">Profile</Link>}
-          {isAuthenticated && <Link to="/preferences">Preferences</Link>}
+          {isAuthenticated && (
+            <>
+              <Link to="/dashboard">Dashboard</Link>
+              <Link to="/profile">Profile</Link>
+              <Link to="/preferences">Preferences</Link>
+            </>
+          )}
 
           {/* Owner links */}
-          {isOwnerAuthenticated && <span className="nav-divider">|</span>}
-          {isOwnerAuthenticated && <Link to="/owner/dashboard">Owner Dashboard</Link>}
-          {isOwnerAuthenticated && <Link to="/owner/restaurants">My Restaurants</Link>}
-          {isOwnerAuthenticated && <Link to="/owner/restaurants/new">Post Restaurant</Link>}
-          {isOwnerAuthenticated && <Link to="/owner/profile">Owner Profile</Link>}
+          {isOwnerAuthenticated && (
+            <>
+              <Link to="/owner/dashboard">Owner Dashboard</Link>
+              <Link to="/owner/restaurants">My Restaurants</Link>
+              <Link to="/owner/restaurants/new">Post Restaurant</Link>
+              <Link to="/owner/profile">Owner Profile</Link>
+            </>
+          )}
 
           {/* Guest links */}
-          {!isAuthenticated && !isOwnerAuthenticated && <Link to="/login">Login</Link>}
-          {!isAuthenticated && !isOwnerAuthenticated && <Link to="/signup">Sign Up</Link>}
-          {!isOwnerAuthenticated && <Link to="/owner/login">Owner Login</Link>}
+          {!isAuthenticated && !isOwnerAuthenticated && (
+            <>
+              <Link to="/login">User Login</Link>
+              <Link to="/signup">Sign Up</Link>
+              <Link to="/owner/login">Owner Login</Link>
+            </>
+          )}
         </nav>
 
         <div className="nav-user-group">
           {isAuthenticated && (
             <div className="nav-user">
+              <Link to="/profile" className="nav-avatar-link" title="My Profile">
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Profile" className="nav-avatar-img" />
+                ) : (
+                  <div className="nav-avatar-placeholder">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                )}
+              </Link>
               <span className="nav-user-name">{user?.name || "User"}</span>
               <button type="button" className="btn-logout" onClick={handleLogout}>
                 Logout
@@ -59,7 +78,7 @@ export default function TopNav() {
             <div className="nav-user nav-user--owner">
               <span className="nav-user-name">{owner?.name || "Owner"}</span>
               <button type="button" className="btn-logout" onClick={handleOwnerLogout}>
-                Owner Logout
+                Logout
               </button>
             </div>
           )}
