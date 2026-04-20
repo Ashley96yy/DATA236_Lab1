@@ -9,3 +9,5 @@ data:
   JWT_ALGORITHM: HS256
   SESSION_TTL_HOURS: "24"
   KAFKA_REVIEW_CONSUMER_GROUP: review-worker-group
+  GEMINI_MODEL: gemini-1.5-flash
+  TAVILY_ENABLED: "true"
