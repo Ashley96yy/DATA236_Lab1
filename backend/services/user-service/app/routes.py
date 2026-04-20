@@ -103,6 +103,7 @@ def _extract_query_preferences(message: str, restaurants: list[dict], stored_pre
     lower = message.lower()
     cuisines = {r.get("cuisine_type", "").strip().lower() for r in restaurants if r.get("cuisine_type")}
     matched_cuisine = next((c for c in sorted(cuisines | COMMON_CUISINES, key=len, reverse=True) if c and c in lower), None)
+    explicit_cuisine = matched_cuisine is not None
 
     # 1. Try to find city from DB (exact match in message)
     cities = {
@@ -111,6 +112,7 @@ def _extract_query_preferences(message: str, restaurants: list[dict], stored_pre
         if (r.get("address", {}) or {}).get("city")
     }
     matched_city = next((city for city in cities if city and city.lower() in lower), None)
+    explicit_city = matched_city is not None
     
     # 2. Try to find location using "in {Location}" or "near {Location}" pattern
     explicit_location = None
@@ -121,6 +123,7 @@ def _extract_query_preferences(message: str, restaurants: list[dict], stored_pre
     # If explicit location is mentioned, it takes priority
     if explicit_location:
         matched_city = explicit_location
+        explicit_city = True
     
     # Only fallback to preferences if NO location was mentioned in the query
     if matched_city is None:
@@ -131,14 +134,18 @@ def _extract_query_preferences(message: str, restaurants: list[dict], stored_pre
             matched_city = current_user["city"]
 
     matched_price = next((tier for tier in ("$$$$", "$$$", "$$", "$") if tier in message), None)
+    explicit_price = matched_price is not None
     if matched_price is None:
         matched_price = stored_preferences.get("price_range")
 
     keywords = [keyword for keyword in VIBE_KEYWORDS if keyword in lower]
     return {
         "cuisine": matched_cuisine,
+        "cuisine_explicit": explicit_cuisine,
         "city": matched_city,
+        "city_explicit": explicit_city,
         "price": matched_price,
+        "price_explicit": explicit_price,
         "keywords": keywords,
     }
 
@@ -147,12 +154,22 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
     ranked = []
     preferred_cuisines = {c.lower() for c in (stored_preferences.get("cuisines") or [])}
     preferred_locations = {c.lower() for c in (stored_preferences.get("preferred_locations") or [])}
+    explicit_cuisine = preferences.get("cuisine_explicit", False)
+    explicit_city = preferences.get("city_explicit", False)
+    explicit_price = preferences.get("price_explicit", False)
     for restaurant in restaurants:
         address = restaurant.get("address", {}) or {}
         cuisine = (restaurant.get("cuisine_type") or "").strip()
         city = (address.get("city") or "").strip()
         description = (restaurant.get("description") or "").lower()
         amenities = [str(item).lower() for item in restaurant.get("amenities") or []]
+
+        if explicit_cuisine and preferences["cuisine"] and cuisine.lower() != preferences["cuisine"]:
+            continue
+        if explicit_city and preferences["city"] and city.lower() != preferences["city"].lower():
+            continue
+        if explicit_price and preferences["price"] and restaurant.get("pricing_tier") != preferences["price"]:
+            continue
 
         reviews = get_reviews_for_restaurant(int(restaurant["_id"]))
         review_count = len(reviews)
@@ -166,7 +183,7 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
         reasons = []
 
         # If location was explicitly requested, we MUST match it or the score stays low
-        requested_location = preferences.get("city")
+        requested_location = preferences.get("city") if explicit_city else None
         has_location_mismatch = False
         
         if requested_location:
@@ -186,14 +203,14 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
         if preferences["cuisine"] and cuisine.lower() == preferences["cuisine"]:
             score += 60
             reasons.append("Matches your cuisine request")
-        elif cuisine.lower() in preferred_cuisines:
+        elif not explicit_cuisine and cuisine.lower() in preferred_cuisines:
             score += 25
             reasons.append("Matches your saved cuisine preference")
 
-        if preferences["city"] and city.lower() == preferences["city"].lower():
+        if explicit_city and preferences["city"] and city.lower() == preferences["city"].lower():
             score += 40
             reasons.append(f"In your requested area ({city})")
-        elif city.lower() in preferred_locations and not requested_location:
+        elif not explicit_city and city.lower() in preferred_locations and not requested_location:
             score += 20
             reasons.append(f"In one of your preferred locations ({city})")
 
@@ -221,6 +238,33 @@ def _rank_restaurants(restaurants: list[dict], preferences: dict, stored_prefere
 
     ranked.sort(key=lambda item: (-item["score"], item["name"].lower()))
     return ranked[:3]
+
+
+def _is_gemini_error_reply(text: str) -> bool:
+    lower = (text or "").lower()
+    return any(
+        marker in lower
+        for marker in (
+            "encountered an error with the gemini api",
+            "unexpected error while generating a response",
+            "api key is not configured",
+        )
+    )
+
+
+def _build_internal_fallback_reply(suggestions: list[dict]) -> str:
+    if not suggestions:
+        return "I could not find a strong match yet. Try adding a cuisine, budget, or city."
+
+    reply_lines = ["Here are top matches based on your preferences and query:"]
+    for index, item in enumerate(suggestions, start=1):
+        meta_bits = [item["name"]]
+        if item["average_rating"]:
+            meta_bits.append(f"{item['average_rating']:.1f}★")
+        if item["pricing_tier"]:
+            meta_bits.append(item["pricing_tier"])
+        reply_lines.append(f"{index}. {' '.join(meta_bits)} - {item['reason']}")
+    return "\n".join(reply_lines)
 
 
 async def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest) -> AiAssistantChatResponse:
@@ -275,6 +319,8 @@ async def _build_ai_response(current_user: dict, payload: AiAssistantChatRequest
         )
         user_prompt = f"User Query: {payload.message}\n\nContext:\n{context}\n\nPlease provide a friendly response."
         ai_reply = await gemini.generate_response(system_prompt, user_prompt)
+        if _is_gemini_error_reply(ai_reply):
+            ai_reply = _build_internal_fallback_reply(suggestions)
         
         suggested_restaurants = [
             AiSuggestedRestaurant(
