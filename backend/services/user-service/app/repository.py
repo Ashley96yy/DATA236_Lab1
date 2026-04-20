@@ -162,38 +162,37 @@ def get_user_history(user_id: int) -> dict:
     db = _db()
 
     raw_reviews = list(db[REVIEWS].find({"user_id": int(user_id)}).sort("created_at", -1))
-    reviews_written = []
+    my_reviews = []
     for review in raw_reviews:
         restaurant = db[RESTAURANTS].find_one({"_id": int(review["restaurant_id"])})
-        reviews_written.append({
+        my_reviews.append({
             "review_id": int(review["_id"]),
             "restaurant_id": int(review["restaurant_id"]),
             "restaurant_name": restaurant["name"] if restaurant else "Unknown",
             "rating": int(review["rating"]),
             "comment": review.get("comment"),
+            "created_at": review.get("created_at"),
         })
 
-    fav_docs = list(db[FAVORITES].find({"user_id": int(user_id)}))
-    restaurants_added = []
-    for fav in fav_docs:
-        restaurant = db[RESTAURANTS].find_one({"_id": int(fav["restaurant_id"])})
-        if restaurant:
-            address = restaurant.get("address", {})
-            all_reviews = list(db[REVIEWS].find({"restaurant_id": int(restaurant["_id"])}))
-            review_count = len(all_reviews)
-            avg = round(sum(r.get("rating", 0) for r in all_reviews) / review_count, 2) if review_count else 0.0
-            restaurants_added.append({
-                "restaurant_id": int(restaurant["_id"]),
-                "name": restaurant["name"],
-                "cuisine_type": restaurant.get("cuisine_type"),
-                "city": address.get("city"),
-                "state": address.get("state"),
-                "pricing_tier": restaurant.get("pricing_tier"),
-                "average_rating": avg,
-                "review_count": review_count,
-            })
+    added_docs = list(db[RESTAURANTS].find({"created_by_user_id": int(user_id)}))
+    my_restaurants_added = []
+    for restaurant in added_docs:
+        address = restaurant.get("address", {})
+        all_reviews = list(db[REVIEWS].find({"restaurant_id": int(restaurant["_id"])}))
+        review_count = len(all_reviews)
+        avg = round(sum(r.get("rating", 0) for r in all_reviews) / review_count, 2) if review_count else 0.0
+        my_restaurants_added.append({
+            "restaurant_id": int(restaurant["_id"]),
+            "name": restaurant["name"],
+            "cuisine_type": restaurant.get("cuisine_type"),
+            "city": address.get("city"),
+            "state": address.get("state"),
+            "pricing_tier": restaurant.get("pricing_tier"),
+            "average_rating": avg,
+            "review_count": review_count,
+        })
 
-    return {"reviews_written": reviews_written, "restaurants_added": restaurants_added}
+    return {"my_reviews": my_reviews, "my_restaurants_added": my_restaurants_added}
 
 
 def list_restaurants_for_ai() -> list[dict]:

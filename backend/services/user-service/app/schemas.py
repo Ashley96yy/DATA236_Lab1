@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -97,11 +98,12 @@ class HistoryReviewEntry(BaseModel):
     restaurant_name: str
     rating: int
     comment: str | None = None
+    created_at: datetime | None = None
 
 
 class UserHistoryResponse(BaseModel):
-    reviews_written: list[HistoryReviewEntry] = Field(default_factory=list)
-    restaurants_added: list[FavoriteEntry] = Field(default_factory=list)
+    my_reviews: list[HistoryReviewEntry] = Field(default_factory=list)
+    my_restaurants_added: list[FavoriteEntry] = Field(default_factory=list)
 
 
 class ConversationTurn(BaseModel):
@@ -115,12 +117,14 @@ class AiAssistantChatRequest(BaseModel):
 
 
 class AiSuggestedRestaurant(BaseModel):
-    id: int
+    id: int | None = None
     name: str
     cuisine_type: str | None = None
     pricing_tier: str | None = None
     average_rating: float = 0.0
     reason: str
+    external_url: str | None = None
+    is_external: bool = False
 
 
 class AiAssistantChatResponse(BaseModel):
