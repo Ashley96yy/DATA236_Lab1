@@ -1,244 +1,163 @@
-# DATA236 Lab 1 - Yelp Prototype
+# DATA236 Lab 2 - Yelp Distributed Application
 
-Yelp-style restaurant discovery and review platform built with `React`, `FastAPI`, `MySQL`, and an AI assistant that supports vector retrieval.
+This repository contains the Lab 2 version of our Yelp-style application. The project extends the Lab 1 prototype into a distributed full-stack system with:
 
-## Stack
+- MongoDB for document storage
+- containerized backend microservices
+- Kafka-based asynchronous review processing
+- Kubernetes manifests for deployment
+- Amazon EKS / ECR deployment support
+- Redux-based frontend state management
+- JMeter load-testing plans and result artifacts
+- a hybrid AI assistant with internal recommendations and external fallback search
 
-- Frontend: `React`, `Vite`, `React Router`, `Axios`
-- Backend: `FastAPI`, `SQLAlchemy`, `PyMySQL`, `JWT`, `bcrypt`
-- Database: `MySQL`
-- AI: `LangChain`, `Chroma`, `OpenAI` or local fallback embeddings, `Tavily`
+## Final Lab 2 Architecture
 
-## Implemented Features
+The final deployed system is organized into the following services:
 
-### User / Reviewer
-- User signup, login, logout
-- Profile editing and avatar upload
-- Dining preference management
-- Explore/search page with filters and sorting
-- Restaurant details page
-- Add restaurant listing
-- Review create, edit, delete
-- Favorites
-- User history
-- AI assistant chat widget
+- `user-service`
+  - user authentication
+  - user profile, favorites, preferences
+  - AI assistant workflow
+- `owner-service`
+  - owner authentication
+  - restaurant claim and owner management flows
+  - owner dashboard analytics and sentiment summaries
+- `restaurant-service`
+  - restaurant list/detail data
+  - restaurant creation and photo-related operations
+- `review-api-service`
+  - receives review create/update/delete requests
+  - publishes review events to Kafka
+- `review-worker-service`
+  - consumes Kafka review events
+  - persists the final review changes to MongoDB
+- `api-gateway`
+  - single HTTP entry point for frontend-to-backend communication
+- `frontend`
+  - React/Vite application with Redux-managed state
 
-### Owner
-- Owner signup, login, logout
-- Owner profile management
-- Create restaurant listing as owner
-- Claim existing restaurant
-- Edit claimed restaurant
-- View reviews for claimed restaurants
-- Owner dashboard with analytics
-
-### AI Assistant
-- `POST /api/v1/ai-assistant/chat`
-- Loads user preferences
-- Interprets natural language queries
-- Uses vector retrieval plus MySQL reranking
-- Supports follow-up questions
-- Optionally enriches answers with Tavily live context
-
-## Project Structure
-
-```text
-backend/    FastAPI app, services, schemas, scripts, tests
-frontend/   React app
-db/         MySQL schema and seed SQL
-docs/       planning and reference docs
-```
-
-## Prerequisites
-
-- Python `3.12+`
-- Node.js `18+`
-- MySQL `8.0+`
-
-## Database Setup
-
-Run from the repository root:
-
-```bash
-mysql -u <username> -p < db/001_init_schema.sql
-mysql -u <username> -p < db/003_phase3_schema.sql
-mysql -u <username> -p < db/004_phase4_reviews.sql
-mysql -u <username> -p < db/002_seed_sample_data.sql
-```
-
-Optional quick verification:
-
-```bash
-mysql -u <username> -p < db/003_quick_check_queries.sql
-```
-
-Database name:
-
-```text
-yelp_lab1
-```
-
-## Seed Accounts
-
-### User accounts
-- `alice@example.com` / `Passw0rd!`
-- `bob@example.com` / `Passw0rd!`
-
-### Owner accounts
-- No seeded owner account is required.
-- Create an owner from the UI at `/owner/signup`.
-
-## Backend Setup
-
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Edit `backend/.env` and set at least:
-
-```env
-MYSQL_HOST=127.0.0.1
-MYSQL_PORT=3306
-MYSQL_USER=...
-MYSQL_PASSWORD=...
-MYSQL_DB=yelp_lab1
-JWT_SECRET_KEY=...
-```
-
-### AI Configuration
-
-You can run the AI assistant in two modes.
-
-#### Option 1: Local / no OpenAI cost
-
-```env
-EMBEDDING_PROVIDER=local
-OPENAI_API_KEY=
-AI_LLM_INTENT_EXTRACTION_ENABLED=false
-AI_RETRIEVAL_TOP_K=8
-```
-
-This uses:
-- local fallback embeddings
-- Chroma vector retrieval
-- MySQL reranking
-- fallback response generation without OpenAI
-
-#### Option 2: OpenAI-backed
-
-```env
-LLM_PROVIDER=openai
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_PROVIDER=openai
-AI_LLM_INTENT_EXTRACTION_ENABLED=false
-AI_RETRIEVAL_TOP_K=8
-```
-
-Optional Tavily enrichment:
-
-```env
-TAVILY_API_KEY=...
-```
-
-### Build the Restaurant Vector Index
-
-Run this after the database is ready and whenever restaurant data changes significantly:
-
-```bash
-PYTHONPATH=. .venv/bin/python scripts/rebuild_restaurant_index.py
-```
-
-### Start the Backend
-
-```bash
-PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Backend URLs:
-
-- API root health: `http://127.0.0.1:8000/health`
-- Versioned health: `http://127.0.0.1:8000/api/v1/health`
-- Swagger docs: `http://127.0.0.1:8000/docs`
-
-## Frontend Setup
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-```
-
-Set:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-```
-
-Start the frontend:
-
-```bash
-npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-Frontend URL:
-
-- `http://127.0.0.1:5173`
-
-## Lab 2 Docker Compose Run
-
-The Lab 2 microservice stack can be started locally with Docker Compose.
-
-Services included:
+Supporting infrastructure:
 
 - `mongodb`
 - `zookeeper`
 - `kafka`
-- `mongo-init`
-- `user-service`
-- `owner-service`
-- `restaurant-service`
-- `review-api-service`
-- `review-worker-service`
-- `api-gateway`
-- `frontend`
+- `mongo-init` bootstrap / seed job
 
-Start the stack:
+## Repository Layout
+
+```text
+backend/
+  services/                  backend microservices
+  shared/                    shared config, db, schemas, auth helpers
+  scripts/                   bootstrap and seed utilities
+frontend/
+  src/store/                 Redux store and slices
+deploy/
+  docker/                    local gateway config
+  k8s/                       Kubernetes manifests
+jmeter/
+  plans/                     .jmx load-test plans
+  results/                   raw .jtl outputs and summaries
+  scripts/                   JMeter summarization utilities
+```
+
+## Main Features
+
+### User flows
+
+- user signup / login / logout
+- restaurant browsing, filters, sorting, and detail pages
+- favorites and history
+- create, edit, and delete reviews
+- profile and preference management
+- AI assistant recommendations
+
+### Owner flows
+
+- owner signup / login / logout
+- claim restaurant
+- create and edit restaurant
+- owner dashboard analytics
+- owner-side sentiment labels for claimed restaurants
+
+### Distributed system features
+
+- review events processed asynchronously through Kafka
+- MongoDB-backed session persistence
+- Redux-managed authentication, restaurant, review, favorites, and preference state
+- AWS deployment through EKS and ECR
+
+## Prerequisites
+
+For local Lab 2 execution:
+
+- Docker Desktop or Docker Engine with Compose support
+- optional: `kubectl` for Kubernetes deployment
+- optional: `aws` CLI for EKS / ECR deployment
+- optional: Apache JMeter for performance testing
+
+## Local Lab 2 Run With Docker Compose
+
+This is the primary local run path for Lab 2.
+
+From the repository root:
 
 ```bash
 docker compose up -d --build
 ```
 
-Useful URLs:
+This starts:
 
-- Gateway health: `http://127.0.0.1:8000/health`
-- Gateway API base: `http://127.0.0.1:8000/api/v1`
+- MongoDB
+- Zookeeper
+- Kafka
+- `mongo-init`
+- all backend microservices
+- API gateway
+- frontend
+
+### Local URLs
+
 - Frontend: `http://127.0.0.1:3000`
+- Gateway health: `http://127.0.0.1:8000/health`
+- API base: `http://127.0.0.1:8000/api/v1`
+- Swagger docs are available through the gateway-backed services as applicable
 
-The `mongo-init` service automatically:
-
-- creates MongoDB collections and indexes
-- seeds a small demo dataset when the database is empty
-
-Demo accounts for the Compose stack:
+### Demo Accounts
 
 - User: `ashley@example.com` / `Passw0rd!`
 - Owner: `owner@example.com` / `Passw0rd!`
 
-## Lab 2 Kubernetes / AWS Starter
+### Optional AI Environment Variables
 
-Kubernetes starter manifests are provided under:
+The AI assistant can use internal app data and, when configured, external fallback search.
+
+Set these before running `docker compose up` if needed:
+
+```env
+JWT_SECRET_KEY=change-me
+GOOGLE_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+TAVILY_API_KEY=
+TAVILY_ENABLED=true
+```
+
+Notes:
+
+- internal recommendation logic works from application data
+- Gemini-backed response generation requires `GOOGLE_API_KEY`
+- external fallback search requires `TAVILY_API_KEY`
+
+## Kubernetes / AWS Deployment
+
+Kubernetes manifests are provided under:
 
 ```text
 deploy/k8s/
 ```
 
-They include:
+These manifests include:
 
 - MongoDB
 - Kafka + Zookeeper
@@ -247,51 +166,86 @@ They include:
 - API gateway
 - frontend
 
-For AWS/EKS, replace the local image tags in `deploy/k8s/*.yaml` with your pushed ECR image URIs before applying.
-
-Quick apply command:
+### Basic Apply Command
 
 ```bash
 kubectl apply -k deploy/k8s
 ```
 
-See `deploy/k8s/README.md` for deployment notes and screenshot suggestions.
+### AWS / EKS Notes
 
-## Recommended Local Run Sequence
+For AWS deployment:
 
-From the repository root:
+1. build service images locally
+2. push them to Amazon ECR
+3. update the Kubernetes image references if using versioned tags
+4. apply the manifests into the EKS cluster
 
-1. Start MySQL
-2. Initialize and seed the database
-3. Start the backend
-4. Build the vector index
-5. Start the frontend
-6. Open `http://127.0.0.1:5173`
+Important files:
 
-Example:
+- `deploy/k8s/configmap.yaml`
+- `deploy/k8s/secret-template.yaml`
+- `deploy/k8s/owner-service.yaml`
+- `deploy/k8s/api-gateway.yaml`
+- `deploy/k8s/frontend.yaml`
+
+Do not commit real secrets to the repository. Use placeholders in Kubernetes secret files and inject real values only in your actual deployment environment.
+
+## JMeter Assets
+
+The `jmeter/` directory contains:
+
+- load-test plans
+- test-user CSV data
+- raw `.jtl` outputs
+- summary CSV results
+- helper scripts
+
+Included plans:
+
+- `jmeter/plans/login_load_test.jmx`
+- `jmeter/plans/search_load_test.jmx`
+- `jmeter/plans/create_review_load_test.jmx`
+
+Example CLI command:
 
 ```bash
-cd backend
-PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+jmeter -n -t jmeter/plans/login_load_test.jmx \
+  -Jthreads=100 \
+  -Jramp_up=20 \
+  -Jloops=1 \
+  -Jresults_file=jmeter/results/login_100.jtl
 ```
 
-In another terminal:
+To summarize a JTL result:
 
 ```bash
-cd backend
-PYTHONPATH=. .venv/bin/python scripts/rebuild_restaurant_index.py
+python jmeter/scripts/summarize_jtl.py jmeter/results/login_100.jtl
 ```
 
-In another terminal:
+## Frontend State Management
 
-```bash
-cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173
+Redux state is implemented under:
+
+```text
+frontend/src/store/
 ```
+
+Key slices include:
+
+- `authSlice`
+- `ownerAuthSlice`
+- `restaurantSlice`
+- `reviewSlice`
+- `favoritesSlice`
+- `preferencesSlice`
+
+These slices coordinate authentication, restaurant data, review state, favorites, and personalization state across the application.
 
 ## Main Routes
 
 ### Public
+
 - `/`
 - `/restaurant/:id`
 - `/login`
@@ -300,12 +254,14 @@ npm run dev -- --host 127.0.0.1 --port 5173
 - `/owner/signup`
 
 ### User
+
+- `/dashboard`
 - `/profile`
 - `/preferences`
-- `/dashboard`
 - `/add-restaurant`
 
 ### Owner
+
 - `/owner/dashboard`
 - `/owner/profile`
 - `/owner/restaurants`
@@ -316,44 +272,58 @@ npm run dev -- --host 127.0.0.1 --port 5173
 ## API Summary
 
 ### Authentication
+
 - `POST /api/v1/auth/signup`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/owner/signup`
 - `POST /api/v1/auth/owner/login`
 
 ### User
+
 - `GET /api/v1/users/me`
 - `PUT /api/v1/users/me`
-- `POST /api/v1/users/me/avatar`
-- `GET /api/v1/users/me/preferences`
-- `PUT /api/v1/users/me/preferences`
 - `GET /api/v1/users/me/favorites`
 - `GET /api/v1/users/me/history`
+- `GET /api/v1/users/me/preferences`
+- `PUT /api/v1/users/me/preferences`
 
 ### Restaurants and Reviews
-- `POST /api/v1/restaurants`
+
 - `GET /api/v1/restaurants`
 - `GET /api/v1/restaurants/{id}`
+- `POST /api/v1/restaurants`
 - `POST /api/v1/restaurants/{id}/photos`
 - `POST /api/v1/restaurants/{id}/reviews`
 - `GET /api/v1/restaurants/{id}/reviews`
 - `PUT /api/v1/reviews/{id}`
 - `DELETE /api/v1/reviews/{id}`
 
-### Owner Management
+### Owner
+
 - `GET /api/v1/owners/me`
 - `PUT /api/v1/owners/me`
+- `GET /api/v1/owner/dashboard`
 - `POST /api/v1/owner/restaurants`
 - `PUT /api/v1/owner/restaurants/{id}`
 - `POST /api/v1/owner/restaurants/{id}/claim`
 - `GET /api/v1/owner/restaurants/{id}/reviews`
-- `GET /api/v1/owner/dashboard`
 
 ### AI Assistant
+
 - `POST /api/v1/ai-assistant/chat`
 
-## Notes
-- Do not commit `backend/.env` or any real API keys.
-- `backend/vector_store/` is generated at runtime and ignored by git.
-- If OpenAI quota is unavailable, use local embedding mode.
-- FastAPI Swagger UI is the primary API documentation for this project.
+## Submission Notes
+
+- include Dockerfiles and Kubernetes manifests
+- include Kafka integration code
+- include Redux frontend implementation
+- include JMeter plans and results
+- keep `README.md` aligned with the final Lab 2 architecture
+
+Do not commit:
+
+- `.venv/`
+- `__pycache__/`
+- real API keys or cloud secrets
+- temporary local save files
+
